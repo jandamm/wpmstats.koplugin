@@ -425,17 +425,49 @@ end
 
 -- Shows the detailed overview for the given book in a list.
 function WPM:showDetails(book)
-    -- TODO: Show correct details
+    local sql_stmt = [[
+    SELECT
+        sum(ps.duration) AS duration,
+        (
+            SELECT (page * 1.0 / total_pages)
+            FROM page_stat_data ps2
+            WHERE ps2.id_book = ps.id_book AND date(ps2.start_time, 'unixepoch', 'localtime') = date(ps.start_time, 'unixepoch', 'localtime')
+            ORDER BY ps2.start_time DESC
+            LIMIT 1
+        ) - (
+            SELECT (page * 1.0 / total_pages)
+            FROM page_stat_data ps2
+            WHERE ps2.id_book = ps.id_book AND date(ps2.start_time, 'unixepoch', 'localtime') = date(ps.start_time, 'unixepoch', 'localtime')
+            ORDER BY ps2.start_time ASC
+            LIMIT 1
+        ) AS progress,
+        date(ps.start_time, 'unixepoch', 'localtime') AS id
+    FROM page_stat_data ps
+    WHERE ps.id_book = %d
+    GROUP BY date(ps.start_time, 'unixepoch', 'localtime')
+    ORDER BY id DESC;
+    ]]
+
+    local sql_book = sql_query(string.format(sql_stmt, book.id))
     local kv = self.kv
     local details = {
-        {"first", "abc"},
+        {_("Average"), book.avg},
+        "---",
     }
+    local l = 3
+    for i = 1, #sql_book.duration do
+        local stats = formatStats(book, sql_book, i)
+        if stats then
+            details[l] = {sql_book.id[i], formatStats(book, sql_book, i)}
+            l = l + 1
+        end
+    end
     present(
         KeyValuePage:new{
             title = book.title,
             kv_pairs = details,
             value_align = "right",
-            single_page = true,
+            single_page = false,
             callback_return = function() present(kv) end,
             close_callback = function() self.kv = nil end,
         }
