@@ -243,6 +243,7 @@ end
 
 -- MARK: Set up patching (To get page/word counts)
 
+local unpack = unpack or table.unpack
 local patched_coverbrowser = false
 local function patchCoverBrowser()
     if not patched_coverbrowser then
@@ -266,23 +267,23 @@ local function patchCoverBrowser()
         -- Extract is called in a subprocess so it needs to write extracted files in a file
         local cache_file = DataStorage:getDataDir() .. "/cache/wpm_stats_refresh"
         local orig_extract = BookInfoManager.extractBookInfo
-        function BookInfoManager:extractBookInfo(filepath, cover_specs)
+        function BookInfoManager:extractBookInfo(filepath, ...)
             local file = io.open(cache_file, "a")
             if file then
                 file:write(filepath .. "\n")
                 file:close()
             end
 
-            return orig_extract(self, filepath, cover_specs)
+            return orig_extract(self, filepath, unpack({...}))
         end
 
         -- This is called in the main process. It will the call extractBookInfo in a subprocess.
         -- This clears the cache file and reads what extractBookInfo has written in the meantime and then save the page/word counts.
         local orig_extractAll = BookInfoManager.extractBooksInDirectory
-        function BookInfoManager:extractBooksInDirectory(path, cover_specs)
+        function BookInfoManager:extractBooksInDirectory(path, ...)
             os.remove(cache_file)
 
-            local ret = orig_extractAll(self, path, cover_specs)
+            local ret = orig_extractAll(self, path, unpack({...}))
 
             local file = io.open(cache_file, "r")
             if file then
@@ -305,8 +306,8 @@ require("userpatch").registerPatchPluginFunc("coverbrowser", patchCoverBrowser)
 -- Extract the page/word count when the book is closed (.sdr is written)
 -- This only will fetch the info if it doesn't exist yet.
 local orig_flush = DocSettings.flush
-function DocSettings:flush(data)
-    local ok = orig_flush(self, data)
+function DocSettings:flush(data, ...)
+    local ok = orig_flush(self, data, unpack({...}))
     if ok then
         data = data or self.data
         if data and data.doc_path and data.partial_md5_checksum then
