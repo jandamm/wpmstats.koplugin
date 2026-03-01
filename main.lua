@@ -342,7 +342,7 @@ function WPM:addToMainMenu(menu_items)
     }
 end
 
-local function query(sql_statement)
+local function sql_query(sql_statement)
     local db_location = DataStorage:getSettingsDir() .. "/statistics.sqlite3"
     local conn = SQ3.open(db_location)
     local result = conn:exec(sql_statement)
@@ -350,42 +350,56 @@ local function query(sql_statement)
     return result
 end
 
+-- sql_result needs to have duration and progress
+local function formatStats(book, sql_result, row)
+    if book.settings then
+        local duration = tonumber(sql_result.duration[row]) or 0
+        local progress = tonumber(sql_result.progress[row]) or 0
+        if duration == 0 or progress <= 0 then
+            return _("No progress.")
+        end
+        local min = duration / 60
+        local avg = {}
+        if book.settings.words and book.settings.words > 0 then
+            table.insert(avg, string.format("%.1f WPM", (book.settings.words * progress) / min))
+        end
+        if book.settings.pages and book.settings.pages > 0 then
+            local pages = book.settings.pages * progress
+            table.insert(avg, datetime.secondsToClockDuration("classic", duration / pages):gsub("^00?:0?(%d?%d:%d%d)$", "%1") .. "/page")
+            table.insert(avg, string.format("%.1f PPM", pages / min))
+        end
+        return table.concat(avg, "  ")
+    end
+end
+
+local function userDate(duration, withoutSeconds)
+    return datetime.secondsToClockDuration(G_reader_settings:readSetting("duration_format"), duration, withoutSeconds)
+end
+
 -- Shows all books in a list.
 function WPM:onShowAllBooks()
-    local sql_books = query([[
+    local sql_books = sql_query([[
     SELECT
         id AS id,
-        title as title,
-        md5 AS md5,
-        total_read_time AS time,
+        title AS title,
+        md5 AS hash,
+        total_read_time AS duration,
         total_read_pages * 1.0 / pages AS progress
     FROM book
-    WHERE total_read_pages > 0 AND total_read_time > 0;
+    WHERE total_read_pages > 0 AND total_read_time > 0
+    ORDER BY last_open DESC;
     ]])
     local books = {}
     local l = 1
-    for i = 1, #sql_books do
-        local book = { id = sql_books[1][i], title = sql_books[2][i], hash = sql_books[3][i]}
-        book["settings"] = getCache(book.hash)
-        local has_data = false
-        if book.settings then
-            local min = tonumber(sql_books[4][i]) / 60
-            local per = tonumber(sql_books[5][i])
-            if book.settings.pages and book.settings.pages > 0 then
-                local pages = book.settings.pages * per
-                book["ppm"] = string.format("%.1f PPM", pages / min)
-                book["mpp"] =   datetime.secondsToClockDuration("classic", min * 60 / pages):gsub("^00?:0?(%d?%d:%d%d)$", "%1") .. " per page"
-                has_data = true
-            end
-            if book.settings.words and book.settings.words > 0 then
-                book["wpm"] = string.format("%.1f WPM", (book.settings.words * per) / min)
-                has_data = true
-            end
-        end
+    for i = 1, #sql_books.duration do
+        local book = { id = sql_books.id[i], title = sql_books.title[i], hash = sql_books.hash[i]}
 
-        local callback = has_data and function () self:showDetails(book) end
-        books[l] = {book.title, datetime.secondsToClockDuration(G_reader_settings:readSetting("duration_format"), sql_books[4][i], true), callback = callback}
-        books[l+1] = {"", (book.wpm or "") .. "  " .. (book.mpp or "") .. "  " .. (book.ppm or ""), callback = callback}
+        book["settings"] = getCache(book.hash)
+        book["avg"] = formatStats(book, sql_books, i)
+
+        local callback = book.avg and function () self:showDetails(book) end
+        books[l] = {book.title, userDate(tonumber(sql_books.duration[i])), callback = callback}
+        books[l+1] = {"", book.avg or _("No word and page count. Please refresh metadata."), callback = callback}
         books[l+2] = "---"
         l = l + 3
     end
@@ -394,7 +408,7 @@ function WPM:onShowAllBooks()
             title = _("All books"),
             kv_pairs = books,
             value_align = "right",
-            single_page = true,
+            single_page = false,
         }
     )
 end
