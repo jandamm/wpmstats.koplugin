@@ -392,16 +392,25 @@ function WPM:onShowAllBooks()
     local books = {}
     local l = 1
     for i = 1, #sql_books.duration do
-        local book = { id = sql_books.id[i], title = sql_books.title[i], hash = sql_books.hash[i]}
+        if sql_books.duration[i] < 300 then
+            local cb = function ()
+                UIManager:show(InfoMessage:new{ text = _("Books with less than 5 minutes reading time are ignored.") })
+            end
+            books[l] = {sql_books.title[i], "< " .. userDate(300), callback = cb}
+            books[l+1] = "---"
+            l = l + 2
+        else
+            local book = { id = sql_books.id[i], title = sql_books.title[i], hash = sql_books.hash[i]}
 
-        book["settings"] = getCache(book.hash)
-        book["avg"] = formatStats(book, sql_books, i)
+            book["settings"] = getCache(book.hash)
+            book["avg"] = formatStats(book, sql_books, i)
 
-        local callback = book.avg and function () self:showDetails(book) end
-        books[l] = {book.title, userDate(tonumber(sql_books.duration[i])), callback = callback}
-        books[l+1] = {"", book.avg or _("No word and page count. Please refresh metadata."), callback = callback}
-        books[l+2] = "---"
-        l = l + 3
+            local callback = book.avg and function () self:showDetails(book) end
+            books[l] = {book.title, userDate(tonumber(sql_books.duration[i])), callback = callback}
+            books[l+1] = {"", book.avg or _("No word and page count. Please refresh metadata."), callback = callback}
+            books[l+2] = "---"
+            l = l + 3
+        end
     end
     present(
         KeyValuePage:new{
