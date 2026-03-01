@@ -1,0 +1,6 @@
+local _ = require("gettext")
+return {
+    name = "wpm_stats",
+    fullname = _("WPM Statistics"),
+    description = _([[Show words per minutes for reading statistics.]]),
+}
