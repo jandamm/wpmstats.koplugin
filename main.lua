@@ -28,8 +28,10 @@ local DocSettings = require("docsettings")
 local DocumentRegistry = require("document/documentregistry")
 local KeyValuePage = require("ui/widget/keyvaluepage")
 local ReaderUI = require("apps/reader/readerui")
+local SQ3 = require("lua-ljsqlite3/init")
 local WidgetContainer = require("ui/widget/container/widgetcontainer")
 
+local datetime = require("datetime")
 local filemanagerutil = require("apps/filemanager/filemanagerutil")
 local partialMD5 = require("util").partialMD5
 local wpm_settings = require("luasettings"):open(DataStorage:getSettingsDir().."/wpm_statistics.lua")
@@ -340,14 +342,53 @@ function WPM:addToMainMenu(menu_items)
     }
 end
 
+local function query(sql_statement)
+    local db_location = DataStorage:getSettingsDir() .. "/statistics.sqlite3"
+    local conn = SQ3.open(db_location)
+    local result = conn:exec(sql_statement)
+    conn:close()
+    return result
+end
+
 -- Shows all books in a list.
 function WPM:onShowAllBooks()
-    -- TODO: Get list of books and enrich with stored pages/words
-    local books = {
-        {"first", "abc", callback = function () self:showDetails({title = "Book 1"}) end},
-        "---",
-        {"second", "def", callback = function () self:showDetails({title = "Book 2"}) end},
-    }
+    local sql_books = query([[
+    SELECT
+        id AS id,
+        title as title,
+        md5 AS md5,
+        total_read_time AS time,
+        total_read_pages * 1.0 / pages AS progress
+    FROM book
+    WHERE total_read_pages > 0 AND total_read_time > 0;
+    ]])
+    local books = {}
+    local l = 1
+    for i = 1, #sql_books do
+        local book = { id = sql_books[1][i], title = sql_books[2][i], hash = sql_books[3][i]}
+        book["settings"] = getCache(book.hash)
+        local has_data = false
+        if book.settings then
+            local min = tonumber(sql_books[4][i]) / 60
+            local per = tonumber(sql_books[5][i])
+            if book.settings.pages and book.settings.pages > 0 then
+                local pages = book.settings.pages * per
+                book["ppm"] = string.format("%.1f PPM", pages / min)
+                book["mpp"] =   datetime.secondsToClockDuration("classic", min * 60 / pages):gsub("^00?:0?(%d?%d:%d%d)$", "%1") .. " per page"
+                has_data = true
+            end
+            if book.settings.words and book.settings.words > 0 then
+                book["wpm"] = string.format("%.1f WPM", (book.settings.words * per) / min)
+                has_data = true
+            end
+        end
+
+        local callback = has_data and function () self:showDetails(book) end
+        books[l] = {book.title, datetime.secondsToClockDuration(G_reader_settings:readSetting("duration_format"), sql_books[4][i], true), callback = callback}
+        books[l+1] = {"", (book.wpm or "") .. "  " .. (book.mpp or "") .. "  " .. (book.ppm or ""), callback = callback}
+        books[l+2] = "---"
+        l = l + 3
+    end
     present(
         KeyValuePage:new{
             title = _("All books"),
