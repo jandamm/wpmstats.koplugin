@@ -321,6 +321,7 @@ local function cacheDir(dir)
 
     local msg = InfoMessage:new{ text = _("Refreshing page and word counts"), dismissable = false }
     UIManager:show(msg)
+    UIManager:forceRePaint()
 
     util.findFiles(dir, cacheFileIfBook, true)
     wpm_settings:flush()
