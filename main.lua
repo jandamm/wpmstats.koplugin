@@ -33,7 +33,8 @@ local WidgetContainer = require("ui/widget/container/widgetcontainer")
 
 local datetime = require("datetime")
 local filemanagerutil = require("apps/filemanager/filemanagerutil")
-local partialMD5 = require("util").partialMD5
+local util = require("util")
+local partialMD5 = util.partialMD5
 local wpm_settings = require("luasettings"):open(DataStorage:getSettingsDir().."/wpm_statistics.lua")
 
 
@@ -220,88 +221,34 @@ local function getCache(hash)
     return wpm_settings:readSetting(hash)
 end
 
--- Get and update the cache for the given path and hash.
-local function updateCache(path, hash, force, noFlush)
+local function cacheFile(path, hash, update)
+    hash = hash or getHash(path)
+    local force = update ~= true
+
+    -- clean up old caches
     local old_hash = wpm_settings:readSetting(path)
     if old_hash and old_hash ~= hash then
         wpm_settings:delSetting(old_hash)
         force = true
     end
-    local settings = getCache(hash)
-    if force or not settings or not settings.pages or not settings.words then
+
+    -- Update
+    local settings = force and nil or getCache(hash) -- No settings if force
+    if not settings or not settings.pages or not settings.words then
         local pages, words = getPageCount(path)
         settings = {path = path, pages = pages, words = words}
         wpm_settings:saveSetting(hash, settings)
         wpm_settings:saveSetting(path, hash)
-        if not noFlush then
-            wpm_settings:flush()
+        if update then
+            wpm_settings:flush() -- If no update everything will be flushed at the end
         end
     end
-
-    return settings
 end
+
 
 -- MARK: Set up patching (To get page/word counts)
 
 local unpack = unpack or table.unpack
-local patched_coverbrowser = false
-local function patchCoverBrowser()
-    if not patched_coverbrowser then
-        patched_coverbrowser = true
-
-
-        local BookInfoManager = require("bookinfomanager")
-
-        -- Extract Page/Word Count when extracting information for one file
-        -- This is executed when one file will be manually refreshed
-        local orig_delete = BookInfoManager.deleteBookInfo
-        function BookInfoManager:deleteBookInfo(filepath)
-            updateCache(filepath, getHash(filepath), true)
-            return orig_delete(self, filepath)
-        end
-
-
-        -- Extract Page/Word Count when extracting information for multiple files
-        -- This is executed when one folder will be refreshed
-
-        -- Extract is called in a subprocess so it needs to write extracted files in a file
-        local cache_file = DataStorage:getDataDir() .. "/cache/wpm_stats_refresh"
-        local orig_extract = BookInfoManager.extractBookInfo
-        function BookInfoManager:extractBookInfo(filepath, ...)
-            local file = io.open(cache_file, "a")
-            if file then
-                file:write(filepath .. "\n")
-                file:close()
-            end
-
-            return orig_extract(self, filepath, unpack({...}))
-        end
-
-        -- This is called in the main process. It will the call extractBookInfo in a subprocess.
-        -- This clears the cache file and reads what extractBookInfo has written in the meantime and then save the page/word counts.
-        local orig_extractAll = BookInfoManager.extractBooksInDirectory
-        function BookInfoManager:extractBooksInDirectory(path, ...)
-            os.remove(cache_file)
-
-            local ret = orig_extractAll(self, path, unpack({...}))
-
-            local file = io.open(cache_file, "r")
-            if file then
-                for filepath in file:lines() do
-                    updateCache(filepath, getHash(filepath), true, true)
-                end
-                file:close()
-            end
-
-            wpm_settings:flush()
-            os.remove(cache_file)
-
-            return ret
-        end
-    end
-end
-require("userpatch").registerPatchPluginFunc("coverbrowser", patchCoverBrowser)
-
 
 -- Extract the page/word count when the book is closed (.sdr is written)
 -- This only will fetch the info if it doesn't exist yet.
@@ -311,7 +258,7 @@ function DocSettings:flush(data, ...)
     if ok then
         data = data or self.data
         if data and data.doc_path and data.partial_md5_checksum then
-            updateCache(data.doc_path, data.partial_md5_checksum)
+            cacheFile(data.doc_path, data.partial_md5_checksum, true)
         end
     end
     return ok
@@ -326,6 +273,7 @@ local function present(kv)
     WPM.kv = kv
     UIManager:show(WPM.kv)
 end
+
 function WPM:init()
     self:onDispatcherRegisterActions()
     self.ui.menu:registerToMainMenu(self)
@@ -333,15 +281,70 @@ end
 
 function WPM:onDispatcherRegisterActions()
     Dispatcher:registerAction("wpm_stats_action", {category="none", event="ShowAllBooks", title=_("Show WPM Statistics"), general=true,})
+    Dispatcher:registerAction("wpm_stats_action", {category="none", event="RefreshCountsHome", title=_("Refresh WPM Stats Page Counts in Home"), general=true,})
+    Dispatcher:registerAction("wpm_stats_action", {category="none", event="RefreshCountsWithChooser", title=_("Refresh WPM Stats Page Counts"), general=true,})
 end
 
 function WPM:addToMainMenu(menu_items)
     menu_items.wpm_stats = {
         text = _("WPM Statistics"),
         sorting_hint = "tools",
-        callback = function () self:onShowAllBooks() end,
+        sub_item_table = {
+            {
+                text = _("Show Statistics"),
+                callback = function () self:onShowAllBooks() end,
+                separator = true,
+            },
+            {
+                text = _("Refresh Pages and Word cound"),
+                callback = function () self:onRefreshCountsHome() end,
+                hold_callback = function () self:onRefreshCountsWithChooser() end,
+            }
+        }
     }
 end
+
+
+-- MARK: Refreshing Book Count
+
+local function cacheFileIfBook(path)
+    local _, filetype = filemanagerutil.splitFileNameType(path)
+    if filetype == "epub" or filetype == "pdf" then
+        cacheFile(path)
+    end
+end
+
+local function cacheDir(dir)
+    dir = dir or G_reader_settings:readSetting("home_dir")
+
+    UIManager:forceRePaint()
+
+    local msg = InfoMessage:new{ text = _("Refreshing page and word counts"), dismissable = false }
+    UIManager:show(msg)
+
+    util.findFiles(dir, cacheFileIfBook, true)
+    wpm_settings:flush()
+
+    UIManager:close(msg)
+end
+
+function WPM:onRefreshCountsHome() cacheDir() end
+function WPM:onRefreshCountsWithChooser()
+    local home = G_reader_settings:readSetting("home_dir")
+    local PathChooser = require("ui/widget/pathchooser")
+    local path_chooser = PathChooser:new{
+        select_directory = true,
+        select_file = false,
+        show_files = false,
+        file_filter = false,
+        path = home,
+        onConfirm = cacheDir,
+    }
+    UIManager:show(path_chooser)
+end
+
+
+-- MARK: UI
 
 local function sql_query(sql_statement)
     local db_location = DataStorage:getSettingsDir() .. "/statistics.sqlite3"

@@ -15,8 +15,6 @@ The page count will be fetched automatically.
 
 - Enable the statistics plugin (builtin)
 - Install this plugin
-- Cache the page/word counts for existing books
-  - Run `Extract and cache book information` with `Refresh existing`
-  - Otherwise when closing an epub the page count is fetched.
+- Run `Refresh Pages and Word count`
 
-It's only neccessary to cache the books once. New books will automatically be added when they are being read.
+It's only necessary to cache the books once. New books will automatically be added when they are being read.
