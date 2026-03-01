@@ -24,7 +24,7 @@ jobs:
           tag_name: ${{ github.ref }}
           release_name: Release ${{ github.ref }}
           body: |
-            Automatisches Release für Tag ${{ github.ref }}.
+            Automatic release for tag ${{ github.ref }}.
           draft: false
           prerelease: false
 
