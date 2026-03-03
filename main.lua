@@ -305,7 +305,8 @@ end
 -- MARK: Refreshing Book Count
 
 local function cacheFileIfBook(path)
-    local _, filetype = filemanagerutil.splitFileNameType(path)
+    local filename, filetype = filemanagerutil.splitFileNameType(path)
+    if filename:find(".", 1, true) == 1 then return end -- Ignore hidden files
     if filetype == "epub" or filetype == "pdf" then
         cacheFile(path)
     end
