@@ -221,8 +221,8 @@ local function getCache(hash)
     return wpm_settings:readSetting(hash)
 end
 
-local function cacheFile(path, hash, update)
-    hash = hash or getHash(path)
+local function cacheFile(path, update)
+    local hash = getHash(path)
     local force = update ~= true
 
     -- clean up old caches
@@ -252,16 +252,13 @@ local unpack = unpack or table.unpack
 
 -- Extract the page/word count when the book is closed (.sdr is written)
 -- This only will fetch the info if it doesn't exist yet.
-local orig_flush = DocSettings.flush
-function DocSettings:flush(data, ...)
-    local ok = orig_flush(self, data, unpack({...}))
-    if ok then
-        data = data or self.data
-        if data and data.doc_path and data.partial_md5_checksum then
-            cacheFile(data.doc_path, data.partial_md5_checksum, true)
-        end
+local orig_open = DocSettings.open
+function DocSettings:open(path, ...)
+    local new = orig_open(self, path, ...)
+    if path then
+        cacheFile(path, true)
     end
-    return ok
+    return new
 end
 
 local WPM = WidgetContainer:extend{
