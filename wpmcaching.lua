@@ -64,28 +64,45 @@ function M:storeFilepath(path)
     end
 end
 
-function M:storeDir(dir)
-    dir = dir or G_reader_settings:readSetting("home_dir")
+function M:storeDir(choose)
+    function updateDir(dir)
+        UIManager:forceRePaint()
 
-    UIManager:forceRePaint()
+        local msg = InfoMessage:new{ text = _("Refreshing page and word counts"), dismissable = false }
+        UIManager:show(msg)
+        UIManager:forceRePaint()
 
-    local msg = InfoMessage:new{ text = _("Refreshing page and word counts"), dismissable = false }
-    UIManager:show(msg)
-    UIManager:forceRePaint()
+        util.findFiles(dir, function(path)
+            local filename, filetype = filemanagerutil.splitFileNameType(path)
+            if filename == "" or filename:find(".", 1, true) == 1 then return end -- Ignore hidden files
+            if filetype == "epub" or filetype == "pdf" then
+                local hash = getHash(path)
+                cleanStaleHash(path, hash)
+                local pages, words = getPageCount(path)
+                storeBook(hash, path, pages, words)
+            end
+        end, true)
+        wpm_settings:flush()
 
-    util.findFiles(dir, function(path)
-        local filename, filetype = filemanagerutil.splitFileNameType(path)
-        if filename == "" or filename:find(".", 1, true) == 1 then return end -- Ignore hidden files
-        if filetype == "epub" or filetype == "pdf" then
-            local hash = getHash(path)
-            cleanStaleHash(path, hash)
-            local pages, words = getPageCount(path)
-            storeBook(hash, path, pages, words)
-        end
-    end, true)
-    wpm_settings:flush()
+        UIManager:close(msg)
+    end
 
-    UIManager:close(msg)
+    local home = G_reader_settings:readSetting("home_dir")
+
+    if choose then
+        local PathChooser = require("ui/widget/pathchooser")
+        local path_chooser = PathChooser:new{
+            select_directory = true,
+            select_file = false,
+            show_files = false,
+            file_filter = false,
+            path = home,
+            onConfirm = updateDir,
+        }
+        UIManager:show(path_chooser)
+    else
+        updateDir(home)
+    end
 end
 
 return M

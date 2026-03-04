@@ -89,19 +89,7 @@ end
 -- MARK: Refreshing Book Count
 
 function WPM:onRefreshCountsHome() cache:storeDir() end
-function WPM:onRefreshCountsWithChooser()
-    local home = G_reader_settings:readSetting("home_dir")
-    local PathChooser = require("ui/widget/pathchooser")
-    local path_chooser = PathChooser:new{
-        select_directory = true,
-        select_file = false,
-        show_files = false,
-        file_filter = false,
-        path = home,
-        onConfirm = function (dir) cache:storeDir(dir) end,
-    }
-    UIManager:show(path_chooser)
-end
+function WPM:onRefreshCountsWithChooser() cache:storeDir(true) end
 
 
 -- MARK: UI
