@@ -116,7 +116,7 @@ end
 
 -- sql_result needs to have duration and progress
 local function formatStats(book, sql_result, row)
-    if book.settings then
+    if book.cache then
         local duration = tonumber(sql_result.duration[row]) or 0
         local progress = tonumber(sql_result.progress[row]) or 0
         if duration == 0 or progress <= 0 then
@@ -124,13 +124,12 @@ local function formatStats(book, sql_result, row)
         end
         local min = duration / 60
         local avg = {}
-        if book.settings.words and book.settings.words > 0 then
-            table.insert(avg, string.format("%.1f WPM", (book.settings.words * progress) / min))
+        if book.cache.words and book.cache.words > 0 then
+            table.insert(avg, string.format("%.1f WPM", (book.cache.words * progress) / min))
         end
-        if book.settings.pages and book.settings.pages > 0 then
-            local pages = book.settings.pages * progress
+        if book.cache.pages and book.cache.pages > 0 then
+            local pages = book.cache.pages * progress
             table.insert(avg, datetime.secondsToClockDuration("classic", duration / pages):gsub("^00?:0?(%d?%d:%d%d)$", "%1") .. "/page")
-            table.insert(avg, string.format("%.1f PPM", pages / min))
         end
         if #avg > 0 then
             return table.concat(avg, "  ")
@@ -168,7 +167,7 @@ function WPM:onShowAllBooks()
         else
             local book = { id = sql_books.id[i], title = sql_books.title[i], hash = sql_books.hash[i]}
 
-            book["settings"] = cache:getBook(book.hash, true)
+            book["cache"] = cache:getBook(book.hash, true)
             book["avg"] = formatStats(book, sql_books, i)
 
             local callback = book.avg and function () self:showDetails(book) end
