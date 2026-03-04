@@ -40,7 +40,7 @@ local orig_open = DocSettings.open
 function DocSettings:open(path, ...)
     local new = orig_open(self, path, ...)
     if path then
-        cache:storeFile(path, true)
+        cache:storeFilepath(path)
     end
     return new
 end
@@ -132,7 +132,9 @@ local function formatStats(book, sql_result, row)
             table.insert(avg, datetime.secondsToClockDuration("classic", duration / pages):gsub("^00?:0?(%d?%d:%d%d)$", "%1") .. "/page")
             table.insert(avg, string.format("%.1f PPM", pages / min))
         end
-        return table.concat(avg, "  ")
+        if #avg > 0 then
+            return table.concat(avg, "  ")
+        end
     end
 end
 
@@ -166,7 +168,7 @@ function WPM:onShowAllBooks()
         else
             local book = { id = sql_books.id[i], title = sql_books.title[i], hash = sql_books.hash[i]}
 
-            book["settings"] = cache:getBook(book.hash)
+            book["settings"] = cache:getBook(book.hash, true)
             book["avg"] = formatStats(book, sql_books, i)
 
             local callback = book.avg and function () self:showDetails(book) end
