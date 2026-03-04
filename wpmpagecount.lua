@@ -136,16 +136,18 @@ local function getPageCount(filepath)
                                 std_out:close()
                             end
                         end
+                        local p = nil
+                        local w = nil
                         if found_pagev and found_pagev ~= "0" then
                             logger.dbg(logprefix, "Pagecount found in opf metadata ", fname, found_pagev)
-                            pages = tonumber(found_pagev)
+                            p = tonumber(found_pagev)
                         end
                         if found_wordv and found_wordv ~= "0" then
                             logger.dbg(logprefix, "Wordcount found in opf metadata ", fname, found_wordv)
-                            words = tonumber(found_wordv)
+                            w = tonumber(found_wordv)
                         end
-                        if pages or words then
-                            return pages, words
+                        if p or w then
+                            return p, w
                         end
                     end
                     logger.dbg(logprefix, "Page/Wordcount not found", fname)

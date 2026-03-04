@@ -29,57 +29,8 @@ local SQ3 = require("lua-ljsqlite3/init")
 local WidgetContainer = require("ui/widget/container/widgetcontainer")
 
 local datetime = require("datetime")
-local filemanagerutil = require("apps/filemanager/filemanagerutil")
-local util = require("util")
-local partialMD5 = util.partialMD5
-local wpm_settings = require("luasettings"):open(DataStorage:getSettingsDir().."/wpm_statistics.lua")
 
-
--- MARK: Word and Page management
-
-local getPageCount = require("pagecount")
-
--- Gets the filehash
-local function getHash(filepath)
-    local hash
-    local sidecar_file = DocSettings:findSidecarFile(filepath)
-    if sidecar_file then
-        hash = DocSettings.openSettingsFile(sidecar_file):readSetting("partial_md5_checksum")
-    end
-    return hash or partialMD5(filepath)
-end
-
--- Get the saved settings for the given hash.
--- Unfortunately the Reading Statistics db doesn't include a path.
--- So this will only return values when the book was opened (and .sdr was written) or metadata extracted.
-local function getCache(hash)
-    return wpm_settings:readSetting(hash)
-end
-
-local function cacheFile(path, update)
-    local hash = getHash(path)
-    local force = update ~= true
-
-    -- clean up old caches
-    local old_hash = wpm_settings:readSetting(path)
-    if old_hash and old_hash ~= hash then
-        wpm_settings:delSetting(old_hash)
-        force = true
-    end
-
-    -- Update
-    local settings = force and nil or getCache(hash) -- No settings if force
-    if not settings or not settings.pages or not settings.words then
-        local pages, words = getPageCount(path)
-        settings = {path = path, pages = pages, words = words}
-        wpm_settings:saveSetting(hash, settings)
-        wpm_settings:saveSetting(path, hash)
-        if update then
-            wpm_settings:flush() -- If no update everything will be flushed at the end
-        end
-    end
-end
-
+local cache = require("wpmcaching")
 
 -- MARK: Set up patching (To get page/word counts)
 
@@ -89,7 +40,7 @@ local orig_open = DocSettings.open
 function DocSettings:open(path, ...)
     local new = orig_open(self, path, ...)
     if path then
-        cacheFile(path, true)
+        cache:storeFile(path, true)
     end
     return new
 end
@@ -137,30 +88,7 @@ end
 
 -- MARK: Refreshing Book Count
 
-local function cacheFileIfBook(path)
-    local filename, filetype = filemanagerutil.splitFileNameType(path)
-    if filename:find(".", 1, true) == 1 then return end -- Ignore hidden files
-    if filetype == "epub" or filetype == "pdf" then
-        cacheFile(path)
-    end
-end
-
-local function cacheDir(dir)
-    dir = dir or G_reader_settings:readSetting("home_dir")
-
-    UIManager:forceRePaint()
-
-    local msg = InfoMessage:new{ text = _("Refreshing page and word counts"), dismissable = false }
-    UIManager:show(msg)
-    UIManager:forceRePaint()
-
-    util.findFiles(dir, cacheFileIfBook, true)
-    wpm_settings:flush()
-
-    UIManager:close(msg)
-end
-
-function WPM:onRefreshCountsHome() cacheDir() end
+function WPM:onRefreshCountsHome() cache:storeDir() end
 function WPM:onRefreshCountsWithChooser()
     local home = G_reader_settings:readSetting("home_dir")
     local PathChooser = require("ui/widget/pathchooser")
@@ -170,7 +98,7 @@ function WPM:onRefreshCountsWithChooser()
         show_files = false,
         file_filter = false,
         path = home,
-        onConfirm = cacheDir,
+        onConfirm = function (dir) cache:storeDir(dir) end,
     }
     UIManager:show(path_chooser)
 end
@@ -238,7 +166,7 @@ function WPM:onShowAllBooks()
         else
             local book = { id = sql_books.id[i], title = sql_books.title[i], hash = sql_books.hash[i]}
 
-            book["settings"] = getCache(book.hash)
+            book["settings"] = cache:getBook(book.hash)
             book["avg"] = formatStats(book, sql_books, i)
 
             local callback = book.avg and function () self:showDetails(book) end
