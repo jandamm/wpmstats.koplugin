@@ -1,7 +1,6 @@
 local DataStorage = require("datastorage")
 local DocSettings = require("docsettings")
-local InfoMessage = require("ui/widget/infomessage")
-local UIManager = require("ui/uimanager")
+local UI = require("wpmui")
 local _ = require("gettext")
 
 local filemanagerutil = require("apps/filemanager/filemanagerutil")
@@ -65,12 +64,11 @@ function M:storeFilepath(path)
 end
 
 function M:storeDir(choose)
-    function updateDir(dir)
-        UIManager:forceRePaint()
+    local function updateDir(dir)
+        UI:refresh()
 
-        local msg = InfoMessage:new{ text = _("Refreshing page and word counts"), dismissable = false }
-        UIManager:show(msg)
-        UIManager:forceRePaint()
+        UI:showPopup(_("Refreshing page and word counts"), { dismissable = false })
+        UI:refresh()
 
         util.findFiles(dir, function(path)
             local filename, filetype = filemanagerutil.splitFileNameType(path)
@@ -84,7 +82,7 @@ function M:storeDir(choose)
         end, true)
         wpm_settings:flush()
 
-        UIManager:close(msg)
+        UI:dismissPopup()
     end
 
     local home = G_reader_settings:readSetting("home_dir")
@@ -99,7 +97,7 @@ function M:storeDir(choose)
             path = home,
             onConfirm = updateDir,
         }
-        UIManager:show(path_chooser)
+        UI:show(path_chooser)
     else
         updateDir(home)
     end

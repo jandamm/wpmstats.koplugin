@@ -1,5 +1,4 @@
-local InfoMessage = require("ui/widget/infomessage")
-local UIManager = require("ui/uimanager")
+local UI = require("wpmui")
 local _ = require("gettext")
 
 local logger = require("logger")
@@ -14,10 +13,7 @@ if type(plugins_disabled) ~= "table" then
 end
 if plugins_disabled["statistics"] then
     logger.warn(logprefix, "Statistics not enabled")
-    local popup = InfoMessage:new{
-        text = _("Reading Statistics is not enabled. For please enable to use WPM Statistics."),
-    }
-    UIManager:show(popup)
+    UI:showPopup(_("Reading Statistics is not enabled. For please enable to use WPM Statistics."))
     return { disabled = true }
 end
 
@@ -25,7 +21,6 @@ local Dispatcher = require("dispatcher")  -- luacheck:ignore
 local DocSettings = require("docsettings")
 local WidgetContainer = require("ui/widget/container/widgetcontainer")
 
-local UI = require("wpmui")
 local cache = require("wpmcaching")
 
 -- MARK: Set up patching (To get page/word counts)

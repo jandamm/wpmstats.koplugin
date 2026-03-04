@@ -5,7 +5,6 @@ local SQ3 = require("lua-ljsqlite3/init")
 local UIManager = require("ui/uimanager")
 local _ = require("gettext")
 
-local cache = require("wpmcaching")
 local datetime = require("datetime")
 
 local function sql_query(sql_statement)
@@ -45,9 +44,35 @@ end
 
 local M = {}
 
-function M:present(kv)
+function M:show(view)
+    UIManager:show(view)
+end
+
+function M:refresh()
+    UIManager:forceRePaint()
+end
+
+function M:showPopup(text, args)
+    args = args or {}
+    args["text"] = text
+    self.popup = InfoMessage:new(args)
+    self:show(self.popup)
+    return self.popup
+end
+
+function M:dismissPopup(popup)
+    popup = popup or self.popup
+    if popup then
+        UIManager:close(popup)
+        if popup == self.popup then
+            self.popup = nil
+        end
+    end
+end
+
+function M:presentKV(kv)
     self.kv = kv
-    UIManager:show(self.kv)
+    self:show(self.kv)
 end
 
 
@@ -69,7 +94,7 @@ function M:showBooks()
     for i = 1, #sql_books.duration do
         if sql_books.duration[i] < 300 then
             local cb = function ()
-                UIManager:show(InfoMessage:new{ text = _("Books with less than 5 minutes reading time are ignored.") })
+                self:showPopup(_("Books with less than 5 minutes reading time are ignored."))
             end
             books[l] = {sql_books.title[i], "< " .. userDate(300), callback = cb}
             books[l+1] = "---"
@@ -77,6 +102,7 @@ function M:showBooks()
         else
             local book = { id = sql_books.id[i], title = sql_books.title[i], hash = sql_books.hash[i]}
 
+            local cache = require("wpmcaching")
             book["cache"] = cache:getBook(book.hash, true)
             book["avg"] = formatStats(book, sql_books, i)
 
@@ -87,7 +113,7 @@ function M:showBooks()
             l = l + 3
         end
     end
-    self:present(
+    self:presentKV(
         KeyValuePage:new{
             title = _("All books"),
             kv_pairs = books,
@@ -137,13 +163,13 @@ function M:showDetails(book)
             l = l + 1
         end
     end
-    self:present(
+    self:presentKV(
         KeyValuePage:new{
             title = book.title,
             kv_pairs = details,
             value_align = "right",
             single_page = false,
-            callback_return = function() self:present(kv) end,
+            callback_return = function() self:presentKV(kv) end,
             close_callback = function() self.kv = nil end,
         }
     )
