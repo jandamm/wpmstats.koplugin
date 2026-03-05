@@ -31,10 +31,21 @@ local function cleanStaleHash(path, hash)
     end
 end
 
-local function storeBook(hash, path, pages, words)
-    local book = {path = path, pages = pages, words = words}
+local function getBook(hash)
+    return wpm_settings:readSetting(hash)
+end
+
+local function storeBook(hash, book)
     wpm_settings:saveSetting(hash, book)
-    wpm_settings:saveSetting(path, hash)
+    if book.path then
+        wpm_settings:saveSetting(book.path, hash)
+    end
+end
+
+local function storeBookData(hash, path, pages, words)
+    local ignored = getBook(hash).ignored
+    local book = {path = path, pages = pages, words = words, ignored = ignored}
+    storeBook(hash, book)
     return book
 end
 
@@ -42,13 +53,24 @@ end
 -- Unfortunately the Reading Statistics db doesn't include a path.
 -- So this will only return values when the book was opened (and .sdr was written) or metadata extracted.
 function M.getBook(hash, enriched)
-    local book = wpm_settings:readSetting(hash)
+    local book = getBook(hash)
     if enriched and book and book.path and (not book.pages or not book.words) then
         local pages, words = getPageCount(book.path)
-        book = storeBook(hash, book.path, pages, words)
+        book = storeBookData(hash, book.path, pages, words)
         wpm_settings:flush()
     end
     return book
+end
+
+function M.toggleIgnore(hash)
+    local book = getBook(hash)
+    if book.ignored then
+        book.ignored = nil
+    else
+        book.ignored = true
+    end
+    storeBook(hash, book)
+    wpm_settings:flush()
 end
 
 -- Stores the filpath for the given hash
@@ -56,7 +78,7 @@ function M.storeFilepath(path)
     local hash = getHash(path)
     local flush = cleanStaleHash(path, hash)
     if not M.getBook(hash) then
-        storeBook(hash, path)
+        storeBookData(hash, path)
         flush = true
     end
     if flush then
@@ -76,7 +98,7 @@ function M.storeDir(choose)
                 local hash = getHash(path)
                 cleanStaleHash(path, hash)
                 local pages, words = getPageCount(path)
-                storeBook(hash, path, pages, words)
+                storeBookData(hash, path, pages, words)
             end
         end, true)
         wpm_settings:flush()

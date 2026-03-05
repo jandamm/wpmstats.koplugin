@@ -51,6 +51,10 @@ function M:show(view)
     UIManager:show(view)
 end
 
+function M:close(view)
+    UIManager:close(view)
+end
+
 function M:refresh()
     UIManager:forceRePaint()
 end
@@ -66,7 +70,7 @@ end
 function M:dismissPopup(popup)
     popup = popup or self.popup
     if popup then
-        UIManager:close(popup)
+        self:close(popup)
         if popup == self.popup then
             self.popup = nil
         end
@@ -78,6 +82,11 @@ function M:presentKV(kv)
     self:show(self.kv)
 end
 
+function M:toggleIgnoreBook(hash, cache)
+    cache.toggleIgnore(hash)
+    self:close(self.kv)
+    self:showBooks()
+end
 
 -- Shows all books in a list.
 function M:showBooks()
@@ -117,15 +126,16 @@ function M:showBooks()
             local line, readPages, readWords, duration = formatStats(book, sql_books, row)
             book["line"] = line
 
-            if line then
+            if not book.cache.ignored and line then
                 total_duration = total_duration + duration
                 pages = pages + readPages
                 words = words + readWords
             end
 
             local callback = book.line and function () self:showDetails(book) end
-            books[l] = {book.title, userDate(tonumber(sql_books.duration[row])), callback = callback}
-            books[l+1] = {"", book.line or _("No word and page count. Please refresh metadata."), callback = callback}
+            local hold_callback = function () self:toggleIgnoreBook(book.hash, cache) end
+            books[l] = {book.title, userDate(tonumber(sql_books.duration[row])), callback = callback, hold_callback = hold_callback}
+            books[l+1] = {book.cache.ignored and "ignored" or "", book.line or _("No word and page count. Please refresh metadata."), callback = callback, hold_callback = hold_callback}
             books[l+2] = "---"
             l = l + 3
         end
