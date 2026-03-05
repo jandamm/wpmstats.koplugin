@@ -3,5 +3,5 @@ return {
     name = "wpm_stats",
     fullname = _("WPM Statistics"),
     description = _([[Show words per minutes for reading statistics.]]),
-    version = "1.2.0",
+    version = "1.2.1",
 }

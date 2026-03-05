@@ -18,22 +18,25 @@ if plugins_disabled["statistics"] then
 end
 
 local Dispatcher = require("dispatcher")  -- luacheck:ignore
-local DocSettings = require("docsettings")
 local WidgetContainer = require("ui/widget/container/widgetcontainer")
 
 local cache = require("wpmcaching")
 
--- MARK: Set up patching (To get page/word counts)
+-- MARK: Set up patching (To get hash to path)
 
--- Extract the page/word count when the book is closed (.sdr is written)
--- This only will fetch the info if it doesn't exist yet.
-local orig_open = DocSettings.open
-function DocSettings:open(path, ...)
-    local new = orig_open(self, path, ...)
-    if path then
-        cache:storeFilepath(path)
+local patched
+if not patched then
+    patched = true
+
+    local ReaderUI = require("apps/reader/readerui")
+
+    local orig_showReader = ReaderUI.showReader
+    function ReaderUI:showReader(path, ...)
+        if path then
+            cache:storeFilepath(path)
+        end
+        return orig_showReader(self, path, ...)
     end
-    return new
 end
 
 local WPM = WidgetContainer:extend{
