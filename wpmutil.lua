@@ -20,4 +20,8 @@ function M.home()
     return M.readerSetting("home_dir")
 end
 
+function M.isInHome(path)
+    return util.stringStartsWith(path, M.home():match("(.*)/?") .. "/")
+end
+
 return M

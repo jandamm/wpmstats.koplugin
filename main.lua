@@ -30,7 +30,7 @@ if not patched then
 
     local orig_showReader = ReaderUI.showReader
     function ReaderUI:showReader(path, ...)
-        if path then
+        if path and wpmutil.isInHome(path) then
             cache.storeFilepath(path)
         end
         return orig_showReader(self, path, ...)
