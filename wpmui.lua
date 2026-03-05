@@ -16,27 +16,29 @@ local function sql_query(sql_statement)
     return result
 end
 
--- sql_result needs to have duration and progress
-local function formatStats(book, sql_result, row)
-    if book.cache then
-        local duration = tonumber(sql_result.duration[row]) or 0
-        local progress = tonumber(sql_result.progress[row]) or 0
-        if duration == 0 or progress <= 0 then
-            return _("No progress.")
-        end
-        local min = duration / 60
-        local avg = {}
-        if book.cache.words and book.cache.words > 0 then
-            table.insert(avg, string.format("%.1f WPM", (book.cache.words * progress) / min))
-        end
-        if book.cache.pages and book.cache.pages > 0 then
-            local pages = book.cache.pages * progress
-            table.insert(avg, datetime.secondsToClockDuration("classic", duration / pages):gsub("^00?:0?(%d?%d:%d%d)$", "%1") .. "/page")
-        end
-        if #avg > 0 then
-            return table.concat(avg, "  ")
-        end
+local function formatLine(readPages, readWords, duration)
+    local line = {}
+    if readWords > 0 then
+        table.insert(line, string.format("%.1f WPM", readWords / (duration / 60)))
     end
+    if readPages > 0 then
+        table.insert(line, datetime.secondsToClockDuration("classic", duration / readPages):gsub("^00?:0?(%d?%d:%d%d)$", "%1") .. "/page")
+    end
+    if #line > 0 then
+        return table.concat(line, "  ")
+    end
+end
+
+local function formatStats(book, sql_result, row)
+    if not book.cache then return end
+
+    local duration = tonumber(sql_result.duration[row]) or 0
+    local progress = tonumber(sql_result.progress[row]) or 0
+
+    local readPages = (book.cache.pages or 0) * progress
+    local readWords = (book.cache.words or 0) * progress
+
+    return formatLine(readPages, readWords, duration), readPages, readWords, duration
 end
 
 local function userDate(duration, withoutSeconds)
@@ -90,28 +92,48 @@ function M:showBooks()
     WHERE total_read_pages > 0 AND total_read_time > 0
     ORDER BY last_open DESC;
     ]])
-    local books = {}
-    local l = 1
-    for i = 1, #sql_books.duration do
-        if sql_books.duration[i] < 300 then
+    local books = {
+        {_("Overall"), _("No data.")},
+        "---",
+        "---"
+    }
+    local l = 4
+    local total_duration = 0
+    local pages = 0
+    local words = 0
+    for row = 1, #sql_books.duration do
+        if sql_books.duration[row] < 300 then
             local cb = function ()
                 self:showPopup(_("Books with less than 5 minutes reading time are ignored."))
             end
-            books[l] = {sql_books.title[i], "< " .. userDate(300), callback = cb}
+            books[l] = {sql_books.title[row], "< " .. userDate(300), callback = cb}
             books[l+1] = "---"
             l = l + 2
         else
-            local book = { id = sql_books.id[i], title = sql_books.title[i], hash = sql_books.hash[i]}
+            local book = { id = sql_books.id[row], title = sql_books.title[row], hash = sql_books.hash[row]}
 
             local cache = require("wpmcaching")
             book["cache"] = cache.getBook(book.hash, true)
-            book["avg"] = formatStats(book, sql_books, i)
+            local line, readPages, readWords, duration = formatStats(book, sql_books, row)
+            book["line"] = line
 
-            local callback = book.avg and function () self:showDetails(book) end
-            books[l] = {book.title, userDate(tonumber(sql_books.duration[i])), callback = callback}
-            books[l+1] = {"", book.avg or _("No word and page count. Please refresh metadata."), callback = callback}
+            if line then
+                total_duration = total_duration + duration
+                pages = pages + readPages
+                words = words + readWords
+            end
+
+            local callback = book.line and function () self:showDetails(book) end
+            books[l] = {book.title, userDate(tonumber(sql_books.duration[row])), callback = callback}
+            books[l+1] = {"", book.line or _("No word and page count. Please refresh metadata."), callback = callback}
             books[l+2] = "---"
             l = l + 3
+        end
+    end
+    if total_duration > 0 and (pages > 0 or words > 0) then
+        local line = formatLine(pages, words, total_duration)
+        if line then
+            books[1][2] = line
         end
     end
     self:presentKV(
@@ -153,14 +175,14 @@ function M:showDetails(book)
     local sql_book = sql_query(string.format(sql_stmt, book.id))
     local kv = self.kv
     local details = {
-        {_("Average"), book.avg},
+        {_("Average"), book.line},
         "---",
     }
     local l = 3
-    for i = 1, #sql_book.duration do
-        local stats = formatStats(book, sql_book, i)
-        if stats then
-            details[l] = {sql_book.id[i], formatStats(book, sql_book, i)}
+    for row = 1, #sql_book.duration do
+        local line = formatStats(book, sql_book, row)
+        if line then
+            details[l] = {sql_book.id[row], line}
             l = l + 1
         end
     end
