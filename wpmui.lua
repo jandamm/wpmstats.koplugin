@@ -6,6 +6,7 @@ local UIManager = require("ui/uimanager")
 local _ = require("gettext")
 
 local datetime = require("datetime")
+local wpmutil = require("wpmutil")
 
 local function sql_query(sql_statement)
     local db_location = DataStorage:getSettingsDir() .. "/statistics.sqlite3"
@@ -39,7 +40,7 @@ local function formatStats(book, sql_result, row)
 end
 
 local function userDate(duration, withoutSeconds)
-    return datetime.secondsToClockDuration(G_reader_settings:readSetting("duration_format"), duration, withoutSeconds)
+    return datetime.secondsToClockDuration(wpmutil.readerSetting("duration_format"), duration, withoutSeconds)
 end
 
 local M = {}
@@ -103,7 +104,7 @@ function M:showBooks()
             local book = { id = sql_books.id[i], title = sql_books.title[i], hash = sql_books.hash[i]}
 
             local cache = require("wpmcaching")
-            book["cache"] = cache:getBook(book.hash, true)
+            book["cache"] = cache.getBook(book.hash, true)
             book["avg"] = formatStats(book, sql_books, i)
 
             local callback = book.avg and function () self:showDetails(book) end

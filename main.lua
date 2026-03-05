@@ -1,18 +1,16 @@
 local UI = require("wpmui")
 local _ = require("gettext")
 
-local logger = require("logger")
-local logprefix = "WPM Stats - "
-
+local wpmutil = require("wpmutil")
 
 -- MARK: Check whether statistics is enabled
 
-local plugins_disabled = G_reader_settings:readSetting("plugins_disabled")
+local plugins_disabled = wpmutil.readerSetting("plugins_disabled")
 if type(plugins_disabled) ~= "table" then
     plugins_disabled = {}
 end
 if plugins_disabled["statistics"] then
-    logger.warn(logprefix, "Statistics not enabled")
+    wpmutil.log_warn(logprefix, "Statistics not enabled")
     UI:showPopup(_("Reading Statistics is not enabled. For please enable to use WPM Statistics."))
     return { disabled = true }
 end
@@ -33,7 +31,7 @@ if not patched then
     local orig_showReader = ReaderUI.showReader
     function ReaderUI:showReader(path, ...)
         if path then
-            cache:storeFilepath(path)
+            cache.storeFilepath(path)
         end
         return orig_showReader(self, path, ...)
     end
@@ -77,8 +75,8 @@ end
 
 -- MARK: Refreshing Book Count
 
-function WPM:onRefreshCountsHome() cache:storeDir() end
-function WPM:onRefreshCountsWithChooser() cache:storeDir(true) end
+function WPM:onRefreshCountsHome() cache.storeDir() end
+function WPM:onRefreshCountsWithChooser() cache.storeDir(true) end
 
 
 -- Shows all books in a list.

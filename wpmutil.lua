@@ -1,0 +1,23 @@
+local util = require("util")
+
+local M = {}
+
+local logprefix = "WPM Stats - "
+local logger = require("logger")
+
+function M.log_warn(...)
+    logger.warn(logprefix, ...)
+end
+function M.log_dbg(...)
+    logger.dbg(logprefix, ...)
+end
+
+function M.readerSetting(setting)
+    return G_reader_settings:readSetting(setting)
+end
+
+function M.home()
+    return M.readerSetting("home_dir")
+end
+
+return M

@@ -6,6 +6,7 @@ local _ = require("gettext")
 local filemanagerutil = require("apps/filemanager/filemanagerutil")
 local getPageCount = require("wpmpagecount")
 local util = require("util")
+local wpmutil = require("wpmutil")
 local partialMD5 = util.partialMD5
 local wpm_settings = require("luasettings"):open(DataStorage:getSettingsDir().."/wpm_statistics.lua")
 
@@ -40,7 +41,7 @@ end
 -- Get the saved settings for the given hash.
 -- Unfortunately the Reading Statistics db doesn't include a path.
 -- So this will only return values when the book was opened (and .sdr was written) or metadata extracted.
-function M:getBook(hash, enriched)
+function M.getBook(hash, enriched)
     local book = wpm_settings:readSetting(hash)
     if enriched and book and book.path and (not book.pages or not book.words) then
         local pages, words = getPageCount(book.path)
@@ -51,10 +52,10 @@ function M:getBook(hash, enriched)
 end
 
 -- Stores the filpath for the given hash
-function M:storeFilepath(path)
+function M.storeFilepath(path)
     local hash = getHash(path)
     local flush = cleanStaleHash(path, hash)
-    if not self:getBook(hash) then
+    if not M.getBook(hash) then
         storeBook(hash, path)
         flush = true
     end
@@ -63,10 +64,8 @@ function M:storeFilepath(path)
     end
 end
 
-function M:storeDir(choose)
+function M.storeDir(choose)
     local function updateDir(dir)
-        UI:refresh()
-
         UI:showPopup(_("Refreshing page and word counts"), { dismissable = false })
         UI:refresh()
 
@@ -85,8 +84,6 @@ function M:storeDir(choose)
         UI:dismissPopup()
     end
 
-    local home = G_reader_settings:readSetting("home_dir")
-
     if choose then
         local PathChooser = require("ui/widget/pathchooser")
         local path_chooser = PathChooser:new{
@@ -94,12 +91,12 @@ function M:storeDir(choose)
             select_file = false,
             show_files = false,
             file_filter = false,
-            path = home,
+            path = wpmutil.home(),
             onConfirm = updateDir,
         }
         UI:show(path_chooser)
     else
-        updateDir(home)
+        updateDir(wpmutil.home())
     end
 end
 
