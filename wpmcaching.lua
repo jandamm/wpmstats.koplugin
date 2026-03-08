@@ -31,8 +31,8 @@ local function cleanStaleHash(path, hash)
     end
 end
 
-local function getBook(hash)
-    return wpm_settings:readSetting(hash)
+local function getBook(hash, default)
+    return wpm_settings:readSetting(hash) or default
 end
 
 local function storeBook(hash, book)
@@ -43,7 +43,7 @@ local function storeBook(hash, book)
 end
 
 local function storeBookData(hash, path, pages, words)
-    local ignored = getBook(hash).ignored
+    local ignored = getBook(hash, {}).ignored
     local book = {path = path, pages = pages, words = words, ignored = ignored}
     storeBook(hash, book)
     return book
