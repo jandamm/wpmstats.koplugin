@@ -20,23 +20,6 @@ local WidgetContainer = require("ui/widget/container/widgetcontainer")
 
 local cache = require("wpmcaching")
 
--- MARK: Set up patching (To get hash to path)
-
-local patched
-if not patched then
-    patched = true
-
-    local ReaderUI = require("apps/reader/readerui")
-
-    local orig_showReader = ReaderUI.showReader
-    function ReaderUI:showReader(path, ...)
-        if path and wpmutil.isInHome(path) then
-            cache.storeFilepath(path)
-        end
-        return orig_showReader(self, path, ...)
-    end
-end
-
 local WPM = WidgetContainer:extend{
     name = "wpm_stats",
     is_doc_only = false,
@@ -70,6 +53,13 @@ function WPM:addToMainMenu(menu_items)
             }
         }
     }
+end
+
+function WPM:onReaderReady(config)
+    local path = config:readSetting("doc_path")
+    if path and wpmutil.isInHome(path) then
+        cache.storeFilepath(path, config:readSetting("partial_md5_checksum"))
+    end
 end
 
 

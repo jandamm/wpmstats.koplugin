@@ -74,8 +74,8 @@ function M.toggleIgnore(hash)
 end
 
 -- Stores the filpath for the given hash
-function M.storeFilepath(path)
-    local hash = getHash(path)
+function M.storeFilepath(path, hash)
+    hash = hash or getHash(path)
     local flush = cleanStaleHash(path, hash)
     if not M.getBook(hash) then
         storeBookData(hash, path)
