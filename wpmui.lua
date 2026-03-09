@@ -127,8 +127,9 @@ function M:showBooks()
             book["cache"] = cache.getBook(book.hash, true)
             local line, readPages, readWords, duration = formatStats(book, sql_books, row)
             book["line"] = line
+            local ignored = book.cache and book.cache.ignored
 
-            if not book.cache.ignored and line then
+            if not ignored and line then
                 if readPages > 0 then
                     total_duration_pages = total_duration_pages + duration
                     pages = pages + readPages
@@ -142,7 +143,7 @@ function M:showBooks()
             local callback = book.line and function () self:showDetails(book) end
             local hold_callback = function () self:toggleIgnoreBook(book.hash, cache) end
             books[l] = {book.title, userDate(tonumber(sql_books.duration[row])), callback = callback, hold_callback = hold_callback}
-            books[l+1] = {book.cache.ignored and "ignored" or "", book.line or _("No word and page count. Please refresh metadata."), callback = callback, hold_callback = hold_callback}
+            books[l+1] = {ignored and "ignored" or "", book.line or _("No word and page count. Please refresh metadata."), callback = callback, hold_callback = hold_callback}
             books[l+2] = "---"
             l = l + 3
         end
