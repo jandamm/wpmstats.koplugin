@@ -10,7 +10,7 @@ if type(plugins_disabled) ~= "table" then
     plugins_disabled = {}
 end
 if plugins_disabled["statistics"] then
-    wpmutil.log_warn(logprefix, "Statistics not enabled")
+    wpmutil.log_warn("Statistics not enabled")
     UI:showPopup(_("Reading Statistics is not enabled. For please enable to use WPM Statistics."))
     return { disabled = true }
 end
