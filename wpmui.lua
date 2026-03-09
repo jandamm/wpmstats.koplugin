@@ -16,10 +16,11 @@ local function sql_query(sql_statement)
     return result
 end
 
-local function formatLine(readPages, readWords, duration)
+local function formatLine(readPages, readWords, duration, durationWords)
     local line = {}
     if readWords > 0 then
-        table.insert(line, string.format("%.1f WPM", readWords / (duration / 60)))
+        durationWords = durationWords or duration
+        table.insert(line, string.format("%.1f WPM", readWords / (durationWords / 60)))
     end
     if readPages > 0 then
         table.insert(line, datetime.secondsToClockDuration("classic", duration / readPages):gsub("^00?:0?(%d?%d:%d%d)$", "%1") .. "/page")
@@ -107,7 +108,8 @@ function M:showBooks()
         "---"
     }
     local l = 4
-    local total_duration = 0
+    local total_duration_pages = 0
+    local total_duration_words = 0
     local pages = 0
     local words = 0
     for row = 1, #sql_books.duration do
@@ -127,9 +129,14 @@ function M:showBooks()
             book["line"] = line
 
             if not book.cache.ignored and line then
-                total_duration = total_duration + duration
-                pages = pages + readPages
-                words = words + readWords
+                if readPages > 0 then
+                    total_duration_pages = total_duration_pages + duration
+                    pages = pages + readPages
+                end
+                if readWords > 0 then
+                    total_duration_words = total_duration_words + duration
+                    words = words + readWords
+                end
             end
 
             local callback = book.line and function () self:showDetails(book) end
@@ -140,8 +147,8 @@ function M:showBooks()
             l = l + 3
         end
     end
-    if total_duration > 0 and (pages > 0 or words > 0) then
-        local line = formatLine(pages, words, total_duration)
+    if (total_duration_pages > 0 or total_duration_words > 0)  and (pages > 0 or words > 0) then
+        local line = formatLine(pages, words, total_duration_pages, total_duration_words)
         if line then
             books[1][2] = line
         end
