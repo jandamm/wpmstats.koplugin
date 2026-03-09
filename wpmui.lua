@@ -62,7 +62,7 @@ end
 
 function M:showPopup(text, args)
     args = args or {}
-    args["text"] = text
+    args.text = text
     self.popup = InfoMessage:new(args)
     self:show(self.popup)
     return self.popup
@@ -124,9 +124,9 @@ function M:showBooks()
             local book = { id = sql_books.id[row], title = sql_books.title[row], hash = sql_books.hash[row]}
 
             local cache = require("wpmcaching")
-            book["cache"] = cache.getBook(book.hash, true)
+            book.cache = cache.getBook(book.hash, true)
             local line, readPages, readWords, duration = formatStats(book, sql_books, row)
-            book["line"] = line
+            book.line = line
             local ignored = book.cache and book.cache.ignored
 
             if not ignored and line then
