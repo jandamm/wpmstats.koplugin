@@ -127,7 +127,7 @@ function M:showBooks()
             book.cache = cache.getBook(book.hash, true)
             local line, readPages, readWords, duration = formatStats(book, sql_books, row)
             book.line = line
-            local ignored = book.cache and book.cache.ignored
+            local ignored = book.cache and book.cache.prefs.overallStatsIgnored
 
             if not ignored and line then
                 if readPages > 0 then
