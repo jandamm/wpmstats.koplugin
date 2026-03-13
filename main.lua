@@ -34,6 +34,7 @@ local WPM = WidgetContainer:extend{
 
 function WPM:init()
     self.settings = wpmutil.readerSetting("wpm_stats", {
+        ignore_short_books = true,
     })
     self:onDispatcherRegisterActions()
     self.ui.menu:registerToMainMenu(self)
@@ -58,6 +59,18 @@ function WPM:addToMainMenu(menu_items)
             {
                 text = _("Settings"),
                 sub_item_table = {
+                    {
+                        text = _("Ignore short read books"),
+                        checked_func = function () return self.settings.ignore_short_books end,
+                        callback = function () self.settings.ignore_short_books = not self.settings.ignore_short_books end,
+                    },
+                    {
+                        text = _("Hide short read books"),
+                        checked_func = function () return self.settings.ignore_short_books and self.settings.hide_short_books end,
+                        enabled_func = function () return self.settings.ignore_short_books end,
+                        callback = function () self.settings.hide_short_books = not self.settings.hide_short_books end,
+                        separator = true,
+                    },
                     {
                         text = _("Refresh Pages and Word cound"),
                         callback = function () self:onRefreshCountsHome() end,
@@ -85,7 +98,7 @@ function WPM:onRefreshCountsWithChooser() cache.storeDir(true) end
 
 -- Shows all books in a list.
 function WPM:onShowAllBooks()
-    UI:showBooks()
+    UI:showBooks(self.settings)
 end
 
 return WPM

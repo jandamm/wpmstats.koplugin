@@ -90,7 +90,9 @@ function M:toggleIgnoreBook(hash, cache)
 end
 
 -- Shows all books in a list.
-function M:showBooks()
+function M:showBooks(settings)
+    self.settings = settings or self.settings
+
     local sql_books = sql_query([[
     SELECT
         id AS id,
@@ -113,13 +115,15 @@ function M:showBooks()
     local pages = 0
     local words = 0
     for row = 1, #sql_books.duration do
-        if sql_books.duration[row] < 300 then
-            local cb = function ()
-                self:showPopup(_("Books with less than 5 minutes reading time are ignored."))
+        if self.settings.ignore_short_books and sql_books.duration[row] < 300 then
+            if not self.settings.hide_short_books then
+                local cb = function ()
+                    self:showPopup(_("Books with less than 5 minutes reading time are ignored."))
+                end
+                books[l] = {sql_books.title[row], "< " .. userDate(300), callback = cb}
+                books[l+1] = "---"
+                l = l + 2
             end
-            books[l] = {sql_books.title[row], "< " .. userDate(300), callback = cb}
-            books[l+1] = "---"
-            l = l + 2
         else
             local book = { id = sql_books.id[row], title = sql_books.title[row], hash = sql_books.hash[row]}
 
