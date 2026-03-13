@@ -48,6 +48,14 @@ end
 
 local M = {}
 
+setmetatable(M, {
+    __index = function(t, k)
+        -- Prevent circular reference
+        M.cache = require("wpmcaching")
+        return rawget(t, k)
+    end
+})
+
 function M:show(view)
     UIManager:show(view)
 end
@@ -83,8 +91,8 @@ function M:presentKV(kv)
     self:show(self.kv)
 end
 
-function M:toggleIgnoreBook(hash, cache)
-    cache.toggleIgnore(hash)
+function M:toggleIgnoreBook(hash)
+    self.cache.toggleIgnore(hash)
     self:close(self.kv)
     self:showBooks()
 end
@@ -127,8 +135,7 @@ function M:showBooks(settings)
         else
             local book = { id = sql_books.id[row], title = sql_books.title[row], hash = sql_books.hash[row]}
 
-            local cache = require("wpmcaching")
-            book.cache = cache.getBook(book.hash, true)
+            book.cache = self.cache.getBook(book.hash, true)
             local line, readPages, readWords, duration = formatStats(book, sql_books, row)
             book.line = line
             local ignored = book.cache and book.cache.prefs.overallStatsIgnored
@@ -145,7 +152,7 @@ function M:showBooks(settings)
             end
 
             local callback = book.line and function () self:showDetails(book) end
-            local hold_callback = function () self:toggleIgnoreBook(book.hash, cache) end
+            local hold_callback = function () self:toggleIgnoreBook(book.hash) end
             books[l] = {book.title, userDate(tonumber(sql_books.duration[row])), callback = callback, hold_callback = hold_callback}
             books[l+1] = {ignored and "ignored" or "", book.line or _("No word and page count. Please refresh metadata."), callback = callback, hold_callback = hold_callback}
             books[l+2] = "---"
