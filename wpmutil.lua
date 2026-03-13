@@ -16,6 +16,10 @@ function M.readerSetting(setting)
     return G_reader_settings:readSetting(setting)
 end
 
+function M.readerSettingSafe(setting)
+    return G_reader_settings:has(setting) and M.readerSetting(setting) or {}
+end
+
 function M.home()
     return M.readerSetting("home_dir")
 end
