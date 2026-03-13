@@ -33,6 +33,8 @@ local WPM = WidgetContainer:extend{
 }
 
 function WPM:init()
+    self.settings = wpmutil.readerSetting("wpm_stats", {
+    })
     self:onDispatcherRegisterActions()
     self.ui.menu:registerToMainMenu(self)
 end
@@ -54,9 +56,14 @@ function WPM:addToMainMenu(menu_items)
                 separator = true,
             },
             {
-                text = _("Refresh Pages and Word cound"),
-                callback = function () self:onRefreshCountsHome() end,
-                hold_callback = function () self:onRefreshCountsWithChooser() end,
+                text = _("Settings"),
+                sub_item_table = {
+                    {
+                        text = _("Refresh Pages and Word cound"),
+                        callback = function () self:onRefreshCountsHome() end,
+                        hold_callback = function () self:onRefreshCountsWithChooser() end,
+                    }
+                }
             }
         }
     }

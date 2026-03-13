@@ -12,8 +12,8 @@ function M.log_dbg(...)
     logger.dbg(logprefix, ...)
 end
 
-function M.readerSetting(setting)
-    return G_reader_settings:readSetting(setting)
+function M.readerSetting(setting, default)
+    return G_reader_settings:readSetting(setting, default)
 end
 
 function M.readerSettingSafe(setting)
