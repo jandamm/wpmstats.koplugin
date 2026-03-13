@@ -180,24 +180,33 @@ end
 function M:showDetails(book)
     local sql_stmt = [[
     SELECT
-        sum(ps.duration) AS duration,
-        (
-            SELECT (page * 1.0 / total_pages)
-            FROM page_stat_data ps2
-            WHERE ps2.id_book = ps.id_book AND date(ps2.start_time, 'unixepoch', 'localtime') = date(ps.start_time, 'unixepoch', 'localtime')
-            ORDER BY ps2.start_time DESC
-            LIMIT 1
-        ) - (
-            SELECT (page * 1.0 / total_pages)
-            FROM page_stat_data ps2
-            WHERE ps2.id_book = ps.id_book AND date(ps2.start_time, 'unixepoch', 'localtime') = date(ps.start_time, 'unixepoch', 'localtime')
-            ORDER BY ps2.start_time ASC
-            LIMIT 1
-        ) AS progress,
-        date(ps.start_time, 'unixepoch', 'localtime') AS id
-    FROM page_stat_data ps
-    WHERE ps.id_book = %d
-    GROUP BY date(ps.start_time, 'unixepoch', 'localtime')
+        id,
+        duration,
+        progress_end - progress_start AS progress
+    FROM (
+        SELECT
+            date(ps.start_time, 'unixepoch', 'localtime') AS id,
+            sum(ps.duration) AS duration,
+            (
+                SELECT ((page - 1.0) / total_pages)
+                FROM page_stat_data ps2
+                WHERE ps2.id_book = ps.id_book
+                  AND date(ps2.start_time, 'unixepoch', 'localtime') = date(ps.start_time, 'unixepoch', 'localtime')
+                ORDER BY ps2.start_time ASC
+                LIMIT 1
+            ) AS progress_start,
+            (
+                SELECT (page * 1.0 / total_pages)
+                FROM page_stat_data ps2
+                WHERE ps2.id_book = ps.id_book
+                  AND date(ps2.start_time, 'unixepoch', 'localtime') = date(ps.start_time, 'unixepoch', 'localtime')
+                ORDER BY ps2.start_time DESC
+                LIMIT 1
+            ) AS progress_end
+        FROM page_stat_data ps
+        WHERE ps.id_book = %d
+        GROUP BY date(ps.start_time, 'unixepoch', 'localtime')
+    )
     ORDER BY id DESC;
     ]]
 
