@@ -74,16 +74,29 @@ function M.getBook(hash, enriched)
     return book
 end
 
-function M.toggleIgnore(hash)
-    local book = M.getBook(hash)
+local function updatePrefs(hash, update)
+    local book = getBookRaw(hash)
     if not book then return end
-    if book.prefs.overallStatsIgnored then
-        book.prefs.overallStatsIgnored = nil
-    else
-        book.prefs.overallStatsIgnored = true
-    end
+    book.prefs = book.prefs or {}
+    update(book.prefs)
     storeBook(hash, book)
     wpm_settings:flush()
+end
+
+function M.setOffset(hash, offset)
+    updatePrefs(hash, function(prefs)
+        prefs.progressOffset = offset
+    end)
+end
+
+function M.toggleIgnore(hash)
+    updatePrefs(hash, function(prefs)
+        if prefs.overallStatsIgnored then
+            prefs.overallStatsIgnored = nil
+        else
+            prefs.overallStatsIgnored = true
+        end
+    end)
 end
 
 -- Stores the filpath for the given hash

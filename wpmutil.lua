@@ -20,6 +20,11 @@ function M.readerSettingSafe(setting)
     return G_reader_settings:has(setting) and M.readerSetting(setting) or {}
 end
 
+function M.floatEqual(a, b, epsilon)
+    epsilon = epsilon or 1e-6
+    return a == b or math.abs(a - b) < epsilon
+end
+
 function M.home()
     return M.readerSetting("home_dir")
 end

@@ -16,30 +16,36 @@ local function sql_query(sql_statement)
     return result
 end
 
-local function formatLine(readPages, readWords, duration, durationWords)
+local function createStats(readPages, readWords, duration, durationWords)
+    return { readPages = readPages, readWords = readWords, durationPages = duration, durationWords = durationWords or duration }
+end
+
+local function formatLine(stats)
     local line = {}
-    if readWords > 0 then
-        durationWords = durationWords or duration
-        table.insert(line, string.format("%.1f WPM", readWords / (durationWords / 60)))
+    if stats.readWords > 0 then
+        table.insert(line, string.format("%.1f WPM", stats.readWords / (stats.durationWords / 60)))
     end
-    if readPages > 0 then
-        table.insert(line, datetime.secondsToClockDuration("classic", duration / readPages):gsub("^00?:0?(%d?%d:%d%d)$", "%1") .. "/page")
+    if stats.readPages > 0 then
+        table.insert(line, datetime.secondsToClockDuration("classic", stats.durationPages / stats.readPages):gsub("^00?:0?(%d?%d:%d%d)$", "%1") .. "/page")
     end
     if #line > 0 then
         return table.concat(line, "  ")
     end
 end
 
-local function formatStats(book, sql_result, row)
+local function formatStats(book, sql_result, row, recalculate)
     if not book.cache then return end
 
     local duration = tonumber(sql_result.duration[row]) or 0
     local progress = tonumber(sql_result.progress[row]) or 0
+    if recalculate and book.cache.prefs.progressOffset then
+        progress = progress - book.cache.prefs.progressOffset
+    end
 
-    local readPages = (book.cache.pages or 0) * progress
-    local readWords = (book.cache.words or 0) * progress
+    local stats = createStats((book.cache.pages or 0) * progress, (book.cache.words or 0) * progress, duration)
+    stats.progress = progress
 
-    return formatLine(readPages, readWords, duration), readPages, readWords, duration
+    return formatLine(stats), stats
 end
 
 local function userDate(duration, withoutSeconds)
@@ -99,6 +105,9 @@ end
 
 -- Shows all books in a list.
 function M:showBooks(settings)
+    if self.kv then
+        self:close(self.kv)
+    end
     self.settings = settings or self.settings
 
     local sql_books = sql_query([[
@@ -136,18 +145,19 @@ function M:showBooks(settings)
             local book = { id = sql_books.id[row], title = sql_books.title[row], hash = sql_books.hash[row]}
 
             book.cache = self.cache.getBook(book.hash, true)
-            local line, readPages, readWords, duration = formatStats(book, sql_books, row)
+            local line, stats = formatStats(book, sql_books, row, self.settings.recalculate_book_stats)
             book.line = line
+            book.stats = stats
             local ignored = book.cache and book.cache.prefs.overallStatsIgnored
 
-            if not ignored and line then
-                if readPages > 0 then
-                    total_duration_pages = total_duration_pages + duration
-                    pages = pages + readPages
+            if not ignored and stats then
+                if stats.readPages > 0 then
+                    total_duration_pages = total_duration_pages + stats.durationPages
+                    pages = pages + stats.readPages
                 end
-                if readWords > 0 then
-                    total_duration_words = total_duration_words + duration
-                    words = words + readWords
+                if stats.readWords > 0 then
+                    total_duration_words = total_duration_words + stats.durationWords
+                    words = words + stats.readWords
                 end
             end
 
@@ -160,7 +170,7 @@ function M:showBooks(settings)
         end
     end
     if (total_duration_pages > 0 or total_duration_words > 0)  and (pages > 0 or words > 0) then
-        local line = formatLine(pages, words, total_duration_pages, total_duration_words)
+        local line = formatLine(createStats(pages, words, total_duration_pages, total_duration_words))
         if line then
             books[1][2] = line
         end
@@ -171,6 +181,7 @@ function M:showBooks(settings)
             kv_pairs = books,
             value_align = "right",
             single_page = false,
+            close_callback = function() self.kv = nil end,
         }
     )
 end
@@ -217,12 +228,27 @@ function M:showDetails(book)
         "---",
     }
     local l = 3
+    local progress = 0
     for row = 1, #sql_book.duration do
-        local line = formatStats(book, sql_book, row)
+        local line, stats = formatStats(book, sql_book, row)
         if line then
             details[l] = {sql_book.id[row], line}
             l = l + 1
         end
+        if stats then
+            progress = progress + (stats.progress or 0)
+        end
+    end
+    if self.settings.recalculate_book_stats and not wpmutil.floatEqual(book.stats.progress, progress) then
+        local stats = book.stats
+        stats.readPages = stats.readPages * progress / book.stats.progress
+        stats.readWords = stats.readWords * progress / book.stats.progress
+        self.cache.setOffset(book.hash, stats.progress - progress)
+        details[1][2] = formatLine(stats)
+    end
+    local onClose = function()
+        self.kv = kv
+        self:showBooks()
     end
     self:presentKV(
         KeyValuePage:new{
@@ -230,8 +256,8 @@ function M:showDetails(book)
             kv_pairs = details,
             value_align = "right",
             single_page = false,
-            callback_return = function() self:presentKV(kv) end,
-            close_callback = function() self.kv = nil end,
+            callback_return = onClose,
+            close_callback = onClose,
         }
     )
 end

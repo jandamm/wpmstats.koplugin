@@ -33,8 +33,10 @@ local WPM = WidgetContainer:extend{
 }
 
 function WPM:init()
+    -- G_reader_settings:delSetting("wpm_stats") -- DEBUG
     self.settings = wpmutil.readerSetting("wpm_stats", {
         ignore_short_books = true,
+        recalculate_book_stats = true,
     })
     self:onDispatcherRegisterActions()
     self.ui.menu:registerToMainMenu(self)
@@ -69,6 +71,13 @@ function WPM:addToMainMenu(menu_items)
                         checked_func = function () return self.settings.ignore_short_books and self.settings.hide_short_books end,
                         enabled_func = function () return self.settings.ignore_short_books end,
                         callback = function () self.settings.hide_short_books = not self.settings.hide_short_books end,
+                        separator = true,
+                    },
+                    {
+                        text = _("Recalculate book stats"),
+                        checked_func = function () return self.settings.recalculate_book_stats end,
+                        callback = function () self.settings.recalculate_book_stats = not self.settings.recalculate_book_stats end,
+                        hold_callback = function () UI:showPopup(_("Reading Statistics calculates the number of distict pages you visited as progress. So it might be that you progressed four pages but it will be counted as six pages because you visited footnotes, a map, glossary or changed font size.\n\nThis plugin uses the progress made from the first page opened that day till the last visited page. Which is more precise when reading a book from start to finish.\n\nEnabling will adjust the overall stats to this plugins calculation when showing details for a book.")) end,
                         separator = true,
                     },
                     {
