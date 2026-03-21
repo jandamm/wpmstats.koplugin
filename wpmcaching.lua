@@ -34,13 +34,19 @@ local function checkOldHash(path, hash)
     end
 end
 
-local function getBookRaw(hash, default)
-    local book = wpm_settings:readSetting(hash)
-    if book and book.ignored then -- Migrate ignored
+local Migration140 = {}
+function Migration140.migrate(book)
+    if book and book.ignored then
         book.prefs = book.prefs or {}
         book.prefs.overallStatsIgnored = book.prefs.overallStatsIgnored or book.ignored
         book.ignored = nil
     end
+    return book
+end
+
+local function getBookRaw(hash, default)
+    local book = wpm_settings:readSetting(hash)
+    book = Migration140.migrate(book)
     return book or default
 end
 
