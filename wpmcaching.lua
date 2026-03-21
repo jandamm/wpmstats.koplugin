@@ -51,10 +51,25 @@ local function storeBook(hash, book)
     end
 end
 
+-- Fixes a bug where getBook with enriching would save pages into prefs and words into pages.
+local BugFix141 = {}
+function BugFix141.fixPrefs(prefs)
+    return type(prefs) ~= "number" and prefs or nil
+end
+
 local function storeBookData(hash, path, prefs, pages, words)
     prefs = prefs or getBookRaw(hash, {}).prefs
+    prefs = BugFix141.fixPrefs(prefs)
     local book = {path = path, pages = pages, words = words, prefs = prefs}
     storeBook(hash, book)
+    return book
+end
+
+function BugFix141.fixBook(hash, book)
+    if book and type(book.prefs) == "number" then
+        book = storeBookData(hash, book.path, book.prefs, book.prefs, book.pages)
+        wpm_settings:flush()
+    end
     return book
 end
 
@@ -63,12 +78,13 @@ end
 -- So this will only return values when the book was opened (and .sdr was written) or metadata extracted.
 function M.getBook(hash, enriched)
     local book = getBookRaw(hash)
+    book = BugFix141.fixBook(hash, book)
     if book then
         book.prefs = book.prefs or {} -- Ensure prefs
     end
     if enriched and book and book.path and (not book.pages or not book.words) then
         local pages, words = getPageCount(book.path)
-        book = storeBookData(hash, book.path, pages, words)
+        book = storeBookData(hash, book.path, book.prefs, pages, words)
         wpm_settings:flush()
     end
     return book
