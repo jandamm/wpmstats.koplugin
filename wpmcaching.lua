@@ -57,6 +57,17 @@ local function storeBook(hash, book)
     end
 end
 
+-- Migrates the path of the book when the book is moved.
+local function migratePath(hash, path)
+    local book = wpm_settings:readSetting(hash)
+    if book and book.path and book.path ~= path then
+        wpm_settings:delSetting(book.path)
+        book.path = path
+        storeBook(hash, book)
+        return true
+    end
+end
+
 -- Fixes a bug where getBook with enriching would save pages into prefs and words into pages.
 local BugFix141 = {}
 function BugFix141.fixPrefs(prefs)
@@ -125,10 +136,11 @@ end
 function M.storeFilepath(path, hash)
     hash = hash or getHash(path)
     local new_hash, prefs = checkOldHash(hash, path)
+    local migrated = migratePath(hash, path)
     if not M.getBook(hash) then -- new book
         storeBookData(hash, path, prefs)
         wpm_settings:flush()
-    elseif new_hash then
+    elseif new_hash or migrated then
         wpm_settings:flush()
     end
 end
@@ -144,6 +156,7 @@ function M.storeDir(choose)
             if filetype == "epub" or filetype == "pdf" then
                 local hash = getHash(path)
                 local _, prefs = checkOldHash(hash, path)
+                migratePath(hash, path)
                 local pages, words = getPageCount(path)
                 storeBookData(hash, path, prefs, pages, words)
             end
