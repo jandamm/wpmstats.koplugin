@@ -118,7 +118,14 @@ function M:showBooks(settings)
         total_read_time AS duration,
         total_read_pages * 1.0 / pages AS progress
     FROM book
-    WHERE total_read_pages > 0 AND total_read_time > 0
+    WHERE
+        total_read_pages > 0
+        AND total_read_time > 0
+        AND EXISTS (
+            SELECT 1
+            FROM page_stat_data
+            WHERE id_book = book.id
+        )
     ORDER BY last_open DESC;
     ]])
     local books = {
