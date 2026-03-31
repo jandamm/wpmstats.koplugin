@@ -23,7 +23,7 @@ local function getHash(filepath)
 end
 
 -- Cleans and gets prefs if the books hash changed
-local function checkOldHash(path, hash)
+local function checkOldHash(hash, path)
     local old_hash = wpm_settings:readSetting(path)
     if old_hash and old_hash ~= hash then
         local old_book = wpm_settings:readSetting(old_hash)
@@ -124,12 +124,11 @@ end
 -- Stores the filpath for the given hash
 function M.storeFilepath(path, hash)
     hash = hash or getHash(path)
-    local flush, prefs = checkOldHash(path, hash)
-    if not M.getBook(hash) then
+    local new_hash, prefs = checkOldHash(hash, path)
+    if not M.getBook(hash) then -- new book
         storeBookData(hash, path, prefs)
-        flush = true
-    end
-    if flush then
+        wpm_settings:flush()
+    elseif new_hash then
         wpm_settings:flush()
     end
 end
@@ -144,7 +143,7 @@ function M.storeDir(choose)
             if filename == "" or filename:find(".", 1, true) == 1 then return end -- Ignore hidden files
             if filetype == "epub" or filetype == "pdf" then
                 local hash = getHash(path)
-                local _, prefs = checkOldHash(path, hash)
+                local _, prefs = checkOldHash(hash, path)
                 local pages, words = getPageCount(path)
                 storeBookData(hash, path, prefs, pages, words)
             end
