@@ -139,12 +139,13 @@ function M:showBooks(settings)
     local pages = 0
     local words = 0
     for row = 1, #sql_books.duration do
-        if self.settings.ignore_short_books and sql_books.duration[row] < 300 then
+        local book_min_duration = self.settings.duration_short_books
+        if book_min_duration > 0 and sql_books.duration[row] < book_min_duration then
             if not self.settings.hide_short_books then
                 local cb = function ()
-                    self:showPopup(_("Books with less than 5 minutes reading time are ignored."))
+                    self:showPopup(string.format(_("Books with less than %d minutes reading time are ignored."), wpmutil.secondsToMinutes(book_min_duration)))
                 end
-                books[l] = {sql_books.title[row], "< " .. userDate(300), callback = cb}
+                books[l] = {sql_books.title[row], "< " .. userDate(book_min_duration), callback = cb}
                 books[l+1] = "---"
                 l = l + 2
             end
@@ -246,7 +247,7 @@ function M:showDetails(book)
             progress = progress + (stats.progress or 0)
         end
     end
-    if self.settings.recalculate_book_stats and not wpmutil.floatEqual(book.stats.progress, progress) then
+    if self.settings.recalculate_book_stats and not wpmutil.math.floatEqual(book.stats.progress, progress) then
         local stats = book.stats
         stats.readPages = stats.readPages * progress / book.stats.progress
         stats.readWords = stats.readWords * progress / book.stats.progress

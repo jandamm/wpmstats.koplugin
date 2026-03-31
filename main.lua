@@ -32,8 +32,9 @@ local WPM = WidgetContainer:extend{
     is_doc_only = false,
 }
 
+local DEFAULT_DURATION_SHORT_BOOKS = 300
 local default_settings = {
-    ignore_short_books = true,
+    duration_short_books = DEFAULT_DURATION_SHORT_BOOKS,
     recalculate_book_stats = true,
 }
 
@@ -67,14 +68,46 @@ function WPM:addToMainMenu(menu_items)
                 text = _("Settings"),
                 sub_item_table = {
                     {
-                        text = _("Ignore short read books"),
-                        checked_func = function () return self.settings.ignore_short_books end,
-                        callback = function () self.settings.ignore_short_books = not self.settings.ignore_short_books end,
+                        text_func = function()
+                            if self.settings.duration_short_books == 0 then
+                                return _("Ignore short read books")
+                            end
+                            return string.format(_("Ignore book read less than %s minutes"), wpmutil.secondsToMinutes(self.settings.duration_short_books))
+                        end,
+                        checked_func = function () return self.settings.duration_short_books > 0 end,
+                        callback = function(instance)
+                            local SpinWidget = require("ui/widget/spinwidget")
+                            UI:show(SpinWidget:new{
+                                value = self.settings.duration_short_books,
+                                value_min = 0,
+                                value_max = 3600, -- 1 hour
+                                default_value  = DEFAULT_DURATION_SHORT_BOOKS,
+                                value_step = 60, -- 1 minute
+                                value_hold_step = 300, -- 5 minutes
+                                unit = "s",
+                                title_text =  _("Minimum book read duration"),
+                                info_text = _("Set the minimum duration a book needs to be read to be evaluated.\n\nThe fewer pages are read, the less precise the WPM calculation is."),
+                                option_text = _("Disable"),
+                                option_callback = function() self.settings.duration_short_books = 0 end,
+                                ok_text = _("Set"),
+                                callback = function(spin) self.settings.duration_short_books = spin.value end,
+                                close_callback = function() instance:updateItems() end,
+                            })
+                        end,
+                        hold_callback = function (instance)
+                            if self.settings.duration_short_books > 0 then
+                                self.duration_short_books = self.settings.duration_short_books -- Keep toggle value until KOReader restarts
+                                self.settings.duration_short_books = 0
+                            else
+                                self.settings.duration_short_books = self.duration_short_books or DEFAULT_DURATION_SHORT_BOOKS
+                            end
+                            instance:updateItems()
+                        end,
                     },
                     {
                         text = _("Hide short read books"),
-                        checked_func = function () return self.settings.ignore_short_books and self.settings.hide_short_books end,
-                        enabled_func = function () return self.settings.ignore_short_books end,
+                        checked_func = function () return self.settings.duration_short_books > 0 and self.settings.hide_short_books end,
+                        enabled_func = function () return self.settings.duration_short_books > 0 end,
                         callback = function () self.settings.hide_short_books = not self.settings.hide_short_books end,
                         separator = true,
                     },

@@ -13,6 +13,15 @@ function M.log.dbg(...)
     logger.dbg(M.log.prefix, ...)
 end
 
+function M.math.round(x, decimals)
+    local factor = 10 ^ (decimals or 0)
+    return math.floor(x * factor + 0.5) / factor
+end
+
+function M.math.secondsToMinutes(seconds, precision)
+    return M.math.round(seconds / 60, precision)
+end
+
 function M.insertFallbackValues(values, fallbacks)
     for key, value in pairs(fallbacks) do
         if values[key] == nil then
