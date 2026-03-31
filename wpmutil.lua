@@ -1,15 +1,16 @@
 local util = require("util")
 
 local M = {}
+M.log = { prefix = "WPM Stats - " }
+M.math = {}
 
-local logprefix = "WPM Stats - "
 local logger = require("logger")
 
-function M.log_warn(...)
-    logger.warn(logprefix, ...)
+function M.log.warn(...)
+    logger.warn(M.log.prefix, ...)
 end
-function M.log_dbg(...)
-    logger.dbg(logprefix, ...)
+function M.log.dbg(...)
+    logger.dbg(M.log.prefix, ...)
 end
 
 function M.insertFallbackValues(values, fallbacks)
@@ -31,17 +32,17 @@ function M.readerSettingSafe(setting)
     return G_reader_settings:has(setting) and M.readerSetting(setting) or {}
 end
 
-function M.floatEqual(a, b, epsilon)
+function M.math.floatEqual(a, b, epsilon)
     epsilon = epsilon or 1e-6
     return a == b or math.abs(a - b) < epsilon
 end
 
-function M.home()
+function M.homeDir()
     return M.readerSetting("home_dir")
 end
 
 function M.isInHome(path)
-    return util.stringStartsWith(path, M.home():match("(.*)/?") .. "/")
+    return util.stringStartsWith(path, M.homeDir():match("(.*)/?") .. "/")
 end
 
 return M

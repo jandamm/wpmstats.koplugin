@@ -11,7 +11,7 @@ if type(plugins_disabled) ~= "table" then
 end
 -- Cannot work without Reading Statistics
 if plugins_disabled["statistics"] then
-    wpmutil.log_warn("Statistics plugin not enabled")
+    wpmutil.log.warn("Statistics plugin not enabled")
     UI:showPopup(_("Reading Statistics is not enabled. For please enable to use WPM Statistics."))
     return { disabled = true }
 end
@@ -19,7 +19,7 @@ end
 -- Won't get any new data without Reading Statistics being enabled
 -- Can still work since there is probably some data...
 if not wpmutil.readerSettingSafe("statistics").is_enabled then
-    wpmutil.log_warn("Statistics not enabled")
+    wpmutil.log.warn("Statistics not enabled")
     UI:showPopup(_("Reading Statistics is disabled. WPM Statistics won't get any new data until it's enabled again."))
 end
 local Dispatcher = require("dispatcher")  -- luacheck:ignore

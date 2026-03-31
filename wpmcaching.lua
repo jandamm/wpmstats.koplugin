@@ -173,12 +173,12 @@ function M.storeDir(choose)
             select_file = false,
             show_files = false,
             file_filter = false,
-            path = wpmutil.home(),
+            path = wpmutil.homeDir(),
             onConfirm = updateDir,
         }
         UI:show(path_chooser)
     else
-        updateDir(wpmutil.home())
+        updateDir(wpmutil.homeDir())
     end
 end
 

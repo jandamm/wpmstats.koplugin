@@ -29,13 +29,13 @@ local function getPageCount(filepath)
                 local pagecount, wordcount, filetype = getPageFromFilename(fname)
 
                 if pagecount and pagecount > 0 then
-                    wpmutil.log_dbg("Pagecount found in filename", filepath, pagecount)
+                    wpmutil.log.dbg("Pagecount found in filename", filepath, pagecount)
                     pages = pagecount
                     words = wordcount or 0
                 end
 
                 if filetype ~= "epub" then
-                    wpmutil.log_dbg("Skipping pagecount, not epub", fname)
+                    wpmutil.log.dbg("Skipping pagecount, not epub", fname)
                     return nil
                 end
 
@@ -53,7 +53,7 @@ local function getPageCount(filepath)
                             break
                         end
                         opf_file = string.match(line, opf_match_pattern)
-                        wpmutil.log_dbg(line)
+                        wpmutil.log.dbg(line)
                     end
                 else
                     -- std_out style for POSIX
@@ -62,7 +62,7 @@ local function getPageCount(filepath)
                     if std_out then
                         line = std_out:read()
                         opf_file = string.match(line, opf_match_pattern)
-                        wpmutil.log_dbg(line)
+                        wpmutil.log.dbg(line)
                         std_out:close()
                     end
                 end
@@ -139,18 +139,18 @@ local function getPageCount(filepath)
                     local p = nil
                     local w = nil
                     if found_pagev and found_pagev ~= "0" then
-                        wpmutil.log_dbg("Pagecount found in opf metadata ", fname, found_pagev)
+                        wpmutil.log.dbg("Pagecount found in opf metadata ", fname, found_pagev)
                         p = tonumber(found_pagev)
                     end
                     if found_wordv and found_wordv ~= "0" then
-                        wpmutil.log_dbg("Wordcount found in opf metadata ", fname, found_wordv)
+                        wpmutil.log.dbg("Wordcount found in opf metadata ", fname, found_wordv)
                         w = tonumber(found_wordv)
                     end
                     if p or w then
                         return p, w
                     end
                 end
-                wpmutil.log_dbg("Page/Wordcount not found", fname)
+                wpmutil.log.dbg("Page/Wordcount not found", fname)
                 return nil
             end
             local success, response, wordResponse = pcall(getEstimatedCounts, filepath)
