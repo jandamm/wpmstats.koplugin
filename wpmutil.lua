@@ -12,6 +12,17 @@ function M.log_dbg(...)
     logger.dbg(logprefix, ...)
 end
 
+function M.insertFallbackValues(values, fallbacks)
+    for key, value in pairs(fallbacks) do
+        if values[key] == nil then
+            values[key] = value
+        elseif type(value) == "table" and type(values[key]) == "table" then
+            M.applyDefaults(values[key], value)
+        end
+    end
+    return values
+end
+
 function M.readerSetting(setting, default)
     return G_reader_settings:readSetting(setting, default)
 end

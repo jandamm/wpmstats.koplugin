@@ -32,12 +32,17 @@ local WPM = WidgetContainer:extend{
     is_doc_only = false,
 }
 
+local default_settings = {
+    ignore_short_books = true,
+    recalculate_book_stats = true,
+}
+
 function WPM:init()
-    -- G_reader_settings:delSetting("wpm_stats") -- DEBUG
-    self.settings = wpmutil.readerSetting("wpm_stats", {
-        ignore_short_books = true,
-        recalculate_book_stats = true,
-    })
+    -- G_reader_settings:delSetting(self.name) -- DEBUG
+    self.settings = wpmutil.insertFallbackValues(
+        wpmutil.readerSetting(self.name, default_settings),
+        default_settings
+    )
     self:onDispatcherRegisterActions()
     self.ui.menu:registerToMainMenu(self)
 end
