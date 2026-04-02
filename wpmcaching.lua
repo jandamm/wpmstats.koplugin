@@ -145,41 +145,44 @@ function M.storeFilepath(path, hash)
     end
 end
 
-function M.storeDir(choose)
-    local function updateDir(dir)
-        UI:showPopup(_("Refreshing page and word counts"), { dismissable = false })
-        UI:refresh()
+function M.purge()
+    wpm_settings:reset({})
+    wpm_settings:purge()
+end
 
-        util.findFiles(dir, function(path)
-            local filename, filetype = filemanagerutil.splitFileNameType(path)
-            if filename == "" or filename:find(".", 1, true) == 1 then return end -- Ignore hidden files
-            if filetype == "epub" or filetype == "pdf" then
-                local hash = getHash(path)
-                local _, prefs = checkOldHash(hash, path)
-                migratePath(hash, path)
-                local pages, words = getPageCount(path)
-                storeBookData(hash, path, prefs, pages, words)
-            end
-        end, true)
-        wpm_settings:flush()
+function M.chooseDirToStoreDir()
+    local PathChooser = require("ui/widget/pathchooser")
+    local path_chooser = PathChooser:new{
+        select_directory = true,
+        select_file = false,
+        show_files = false,
+        file_filter = false,
+        path = wpmutil.homeDir(),
+        onConfirm = M.storeDir,
+    }
+    UI:show(path_chooser)
+end
 
-        UI:dismissPopup()
-    end
+function M.storeDir(dir)
+    UI:showPopup(_("Refreshing page and word counts"), { dismissable = false })
+    UI:refresh()
 
-    if choose then
-        local PathChooser = require("ui/widget/pathchooser")
-        local path_chooser = PathChooser:new{
-            select_directory = true,
-            select_file = false,
-            show_files = false,
-            file_filter = false,
-            path = wpmutil.homeDir(),
-            onConfirm = updateDir,
-        }
-        UI:show(path_chooser)
-    else
-        updateDir(wpmutil.homeDir())
-    end
+    dir = dir or wpmutil.homeDir()
+
+    util.findFiles(dir, function(path)
+        local filename, filetype = filemanagerutil.splitFileNameType(path)
+        if filename == "" or filename:find(".", 1, true) == 1 then return end -- Ignore hidden files
+        if filetype == "epub" or filetype == "pdf" then
+            local hash = getHash(path)
+            local _, prefs = checkOldHash(hash, path)
+            migratePath(hash, path)
+            local pages, words = getPageCount(path)
+            storeBookData(hash, path, prefs, pages, words)
+        end
+    end, true)
+    wpm_settings:flush()
+
+    UI:dismissPopup()
 end
 
 return M

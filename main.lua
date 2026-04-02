@@ -119,9 +119,23 @@ function WPM:addToMainMenu(menu_items)
                         separator = true,
                     },
                     {
-                        text = _("Refresh Pages and Word cound"),
-                        callback = function () self:onRefreshCountsHome() end,
-                        hold_callback = function () self:onRefreshCountsWithChooser() end,
+                        text = _("Page count cache"),
+                        sub_item_table = {
+                            {
+                                text = _("Cache home dir"),
+                                callback = function () self:onRefreshCountsHome() end,
+                            },
+                            {
+                                text = _("Cache folder ..."),
+                                callback = function () self:onRefreshCountsWithChooser() end,
+                                separator = true,
+                            },
+                            {
+                                text = _("Clear cache"),
+                                callback = function () cache.purge() end,
+                                keep_menu_open = true,
+                            }
+                        },
                     }
                 }
             }
@@ -140,7 +154,7 @@ end
 -- MARK: Refreshing Book Count
 
 function WPM:onRefreshCountsHome() cache.storeDir() end
-function WPM:onRefreshCountsWithChooser() cache.storeDir(true) end
+function WPM:onRefreshCountsWithChooser() cache.chooseDirToStoreDir() end
 
 
 -- Shows all books in a list.
