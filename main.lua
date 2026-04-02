@@ -46,6 +46,7 @@ function WPM:init()
     )
     self:onDispatcherRegisterActions()
     self.ui.menu:registerToMainMenu(self)
+    self:addToFileManager()
 end
 
 function WPM:onDispatcherRegisterActions()
@@ -150,6 +151,25 @@ function WPM:onReaderReady(config)
     end
 end
 
+
+function WPM:addToFileManager()
+    local FileManager = require("apps/filemanager/filemanager")
+
+    FileManager.addFileDialogButtons(FileManager, "wpmstats", function (folder, is_file)
+        if is_file then return nil end
+        return {
+            {
+                text = _("Cache for WPM Stats"),
+                callback = function()
+                    local dialog = UI:getTopVisibleWidget()
+                    if dialog then UI:close(dialog) end
+                    cache.storeDir(folder)
+                end,
+            },
+        }
+    end
+)
+end
 
 -- MARK: Refreshing Book Count
 

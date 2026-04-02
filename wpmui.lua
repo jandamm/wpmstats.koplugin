@@ -74,6 +74,10 @@ function M:refresh()
     UIManager:forceRePaint()
 end
 
+function M:getTopVisibleWidget()
+    return UIManager:getTopmostVisibleWidget()
+end
+
 function M:showPopup(text, args)
     args = args or {}
     args.text = text
