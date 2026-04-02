@@ -72,7 +72,7 @@ function WPM:addToMainMenu(menu_items)
                             if self.settings.duration_short_books == 0 then
                                 return _("Ignore short read books")
                             end
-                            return string.format(_("Ignore book read less than %s minutes"), wpmutil.secondsToMinutes(self.settings.duration_short_books))
+                            return string.format(_("Ignore book read less than %d minutes"), wpmutil.math.secondsToMinutes(self.settings.duration_short_books))
                         end,
                         checked_func = function () return self.settings.duration_short_books > 0 end,
                         callback = function(instance)
