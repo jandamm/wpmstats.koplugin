@@ -38,12 +38,15 @@ local function formatStats(book, sql_result, row, recalculate)
 
     local duration = tonumber(sql_result.duration[row]) or 0
     local progress = tonumber(sql_result.progress[row]) or 0
+    local progressNoOffset = progress
+
     if recalculate and book.cache.prefs.progressOffset then
         progress = progress - book.cache.prefs.progressOffset
     end
 
     local stats = createStats((book.cache.pages or 0) * progress, (book.cache.words or 0) * progress, duration)
     stats.progress = progress
+    stats.progressNoOffset = progressNoOffset
 
     return formatLine(stats), stats
 end
@@ -253,9 +256,9 @@ function M:showDetails(book)
     end
     if self.settings.recalculate_book_stats and not wpmutil.math.floatEqual(book.stats.progress, progress) then
         local stats = book.stats
-        stats.readPages = stats.readPages * progress / book.stats.progress
-        stats.readWords = stats.readWords * progress / book.stats.progress
-        self.cache.setOffset(book.hash, stats.progress - progress)
+        stats.readPages = stats.readPages * progress / stats.progressNoOffset
+        stats.readWords = stats.readWords * progress / stats.progressNoOffset
+        self.cache.setOffset(book.hash, stats.progressNoOffset - progress)
         details[1][2] = formatLine(stats)
     end
     local onClose = function()
