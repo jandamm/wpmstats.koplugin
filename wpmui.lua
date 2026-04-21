@@ -40,6 +40,13 @@ local function formatStats(book, sql_result, row, recalculate)
     local progress = tonumber(sql_result.progress[row]) or 0
     local progressNoOffset = progress
 
+    if sql_result.page_progress then
+        local page_progress = tonumber(sql_result.page_progress[row])
+        if page_progress then
+            progress = math.min(progress, page_progress)
+        end
+    end
+
     if recalculate and book.cache.prefs.progressOffset then
         progress = progress - book.cache.prefs.progressOffset
     end
@@ -208,11 +215,14 @@ function M:showDetails(book)
     SELECT
         id,
         duration,
-        progress_end - progress_start AS progress
+        progress_end - progress_start AS progress,
+        pages / total_pages AS page_progress
     FROM (
         SELECT
             date(ps.start_time, 'unixepoch', 'localtime') AS id,
             sum(ps.duration) AS duration,
+            count(DISTINCT ps.page) * 1.0 as pages,
+            avg(ps.total_pages) as total_pages,
             (
                 SELECT ((page - 1.0) / total_pages)
                 FROM page_stat_data ps2
